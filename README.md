@@ -1,5 +1,3 @@
 # elections-bologna
 
-A [workflowr][] project.
-
-[workflowr]: https://github.com/workflowr/workflowr
+[Site]: https://flavioleccese92.github.io/bologna-politics/
