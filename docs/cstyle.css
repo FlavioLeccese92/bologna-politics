@@ -1,0 +1,23 @@
+#docute > .Page {margin-top: 50px;}
+#docute > .Page > .Wrap > .Sidebar {margin-top: 50px;}
+.navbar-default {background-color: white;}
+h1 {margin-top: 40px!important;}
+h2 {margin-top: 20px!important;}
+text {font-size: 0.75vw; font-family: 'Raleway', sans-serif}
+img.image-thumb {border: 0px!important;}
+
+.dark-image {filter: var(--dark-image-filter);}
+.dark-map-tiles {filter: var(--dark-map-filter);}
+
+body {
+    background-color: var(--main-background);
+}
+
+.ReactTable {
+  display: flex!important; align-items: center!important; margin: auto!important;
+  background: var(--main-background);
+}
+.grViz {
+  width: 100%!important; height: auto!important;
+}
+#a_graph0 > a > polygon {fill: transparent;}

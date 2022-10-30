@@ -5,13 +5,16 @@ navbar:
   left:
   - text: Home
     href: index.html
-  - text: About
-    href: about.html
+  - text: Note metodologiche
+    href: note-metodologiche.html
   - text: License
     href: license.html
 output:
-  workflowr::wflow_html:
-    toc: yes
-    toc_float: yes
-    theme: cosmo
-    highlight: textmate
+  rmdformats::downcute:
+    css: "cstyle.css"
+    toc_depth: 4
+    self_contained: true
+    thumbnails: true
+    lightbox: true
+    gallery: false
+    highlight: tango
