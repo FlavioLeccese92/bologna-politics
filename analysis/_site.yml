@@ -1,7 +1,7 @@
 name: "elections-bologna"
 output_dir: ../docs
 navbar:
-  title: "elections-bologna"
+  title: "Elezioni Bologna"
   left:
   - text: Home
     href: index.html
