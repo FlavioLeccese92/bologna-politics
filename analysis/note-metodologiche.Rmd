@@ -68,7 +68,7 @@ knitr::opts_chunk$set(echo=FALSE)
 ```
 
 ```{r link-source, echo=FALSE}
-div(style = "height: 180px; display: flex; align-items: flex-start; flex-direction: column; justify-content: space-evenly; flex-wrap: wrap;",
+div(style = "height: 100%; display: flex; align-items: flex-start; flex-direction: column; justify-content: space-evenly; flex-wrap: wrap;",
     div(style = "display: flex; height: 50%; width: 100%; align-items: center;",
         div(style = "width: 25%;",
             tags$img(class = "dark-image", style="width: 90%;", src="images/logo-open-data-bologna.png", alt = "Portale Open Data Bologna")),
@@ -165,7 +165,7 @@ elections_dm %>%
 
 Volendo rimarcare il grande lavoro svolto dal team Open Data Bologna, la confrontabilità dei risultati elettorali tra anni e/o tornate elettorali diverse non è sempre possibile. Tuttavia, non è neppure possibile trovare altre fonti dati accessibili con un livello di dettaglio così alto. Per questa ragione sono stati, necessari alcuni aggiustamenti, in particolare nell'imputare il corpo elettorale o nell'attribuire una geolocalizzazione a seggi e sezioni.
 
-```{r qualità-tabella, echo=FALSE}
+```{r qualità-tabella, echo=FALSE, out.width = "100%"}
 images_url = "https://raw.githubusercontent.com/FlavioLeccese92/elections-bologna/main/docs/images/"
 tibble(anno = c(2004, 2006, 2008, 2009, 2009, 2011,
                 2013, 2014, 2014, 2016, 2018, 2019, 
@@ -210,7 +210,7 @@ tibble(anno = c(2004, 2006, 2008, 2009, 2009, 2011,
                                       cell = JS("function(cellInfo) {
                                       var decode = {No : '\u274c Assenti', Sì : '\u2714\ufe0f Presenti', Scelto : '\u2B50 Scelto'}; return decode[cellInfo.value];}"))
             ),
-            style = list(width = 800)
+            style = list(maxwidth = 800)
   )
 
 ```
@@ -247,7 +247,7 @@ vincolato ciascun poligono secondo due criteri:
 1. Criterio delle `aree_stradali`: un numero civico non può espandersi al di là 
 del poligono delimitato dalle aree stradali che lo contengono.
 
-```{r esempio-dataset delle aree stradali, warning=FALSE, indent = "     ", out.height=300}
+```{r esempio-dataset delle aree stradali, warning=FALSE, indent = "     ", out.height=300, out.width="100%"}
 aree_stradali_polygons_subample = 
   readRDS(paste0(pl, "data/polygons/aree_stradali_polygons.rds")) %>% st_set_crs(4326) %>%
   st_intersection(tibble(point = "center", long = 11.3493292, lat = 44.492245) %>%
@@ -274,7 +274,7 @@ tags$h6(style = "margin-left: 40px;",
 2. Criterio delle `aree_statistiche`: un numero civico non può espandersi al di là 
 del poligono delimitato dalle aree statistiche che lo contengono.
 
-```{r esempio-dataset delle aree statistiche, warning=FALSE, indent = "     ", out.height=300}
+```{r esempio-dataset delle aree statistiche, warning=FALSE, indent = "     ", out.height=300, out.width="100%"}
 aree_statistiche_polygons_subample = 
   readRDS(paste0(pl, "data/polygons/aree_statistiche_polygons.rds")) %>% st_set_crs(4326) %>%
   st_intersection(tibble(point = "center", long = 11.3493292, lat = 44.492245) %>%
