@@ -1,0 +1,299 @@
+---
+title: "Note metodologiche"
+date: "`r Sys.Date()`"
+output:
+  workflowr::wflow_html:
+    css: "cstyle.css"
+    toc: true
+editor_options:
+  chunk_output_type: console
+---
+
+```{js, echo=FALSE}
+// Additional styles for dark mode
+function set_light_style_additional() {
+
+    const style = document.documentElement.style;
+    style.setProperty('--dark-image-filter', 'none');
+    style.setProperty('--dark-map-filter', 'none');
+}
+function set_dark_style_additional() {
+
+    const style = document.documentElement.style;
+    style.setProperty('--dark-image-filter', 'brightness(0) invert(1)');
+    style.setProperty('--dark-map-filter', 'brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.9)');
+    
+}
+// Apply CSS variables defined above
+function toggle_style_additional(toggler) {
+    if (toggler.classList.contains("checked")) {
+        set_dark_style_additional();
+    } else {
+        set_light_style_additional();
+    }
+}
+window.addEventListener("load", (event) => {    // Dark mode additional
+    const toggler = document.querySelector(".dark-theme-toggler .toggle");
+    toggle_style_additional(toggler);
+    toggler.addEventListener("click", (event) => {
+        toggle_style_additional(toggler);
+    })
+});
+```
+
+Questo documento intende esporre alcuni aspetti propedeutici alle analisi dei dati,
+per prendere confidenza con l'impianto "architetturale" del progetto e spiegare
+alcune scelte tecniche. Il confine tra **fake news** ed errori nella lettura dei dati
+è più sottile di quello che si pensi.
+
+# Dati
+
+## Origine
+
+I dati su cui si basano le analisi presenti in questo sito provengono da due fonti principali:
+
+```{r setup, include=FALSE}
+## Global options
+library(dplyr)
+library(shiny)
+library(reactable)
+library(reactablefmtr)
+library(dm)
+library(sf)
+library(leaflet)
+
+if(basename(getwd()) == "analysis"){pl = "../"}else{pl = ""}
+
+knitr::opts_chunk$set(echo=FALSE)
+```
+
+```{r link-source, echo=FALSE}
+div(style = "height: 180px; display: flex; align-items: flex-start; flex-direction: column; justify-content: space-evenly; flex-wrap: wrap;",
+    div(style = "display: flex; height: 50%; width: 100%; align-items: center;",
+        div(style = "width: 25%;",
+            tags$img(class = "dark-image", style="width: 90%;", src="images/logo-open-data-bologna.png", alt = "Portale Open Data Bologna")),
+        div(style = "width: 75%; padding-left: 30px;",
+            tags$span("Il ", tags$a(href = "https://opendata.comune.bologna.it/pages/home/",
+                      "portale Open Data del comune di Bologna"), "mette a disposizione più di 600 dataset sui temi più disparati, tra cui lo storico dei risultati elettorali sul comune di Bologna."),
+            HTML("<br>"),
+            tags$span("I dati sono accessibili tramite una API."))),
+    div(style = "display: flex; height: 50%; width: 100%; align-items: center;",
+        div(style = "width: 25%;",
+            tags$img(class = "dark-image", style="width: 90%;", src="images/logo-eligendo.png", alt = "Portale Open Data Bologna")),
+        div(style = "width: 75%; padding-left: 30px;",
+            tags$span(tags$a(href = "https://elezioni.interno.gov.it/",
+                      "Eligendo"), " è il sistema integrato di diffusione dei dati elettorali sull'intero territorio nazionale."), HTML("<br>"),
+            tags$span("I dati sono accessibili esclusivamente online.")))
+)
+```
+
+L'acquisizione dei dati e l'elaborazione delle analisi, così come questo stesso file, è svolta tramite il linguaggio di programmazione `R` e buona parte degli script è disponibile all'interno delle cartelle del progetto su `Github`.
+
+## Struttura
+
+### Gerarchia territoriale 
+
+Sono possibili diversi livelli di aggregazione del dato elettorale, dai risultati per città fino ad avere le singole sezioni. Ciascun indirizzo civico della città di Bologna, afferisce ad una sezione elettorale, per questa ragione, benchè il dato più dettagliato si fermi al livello di sezione, è possibile avere una buona approssimazione delle preferenze di voto per singolo indirizzo e relative latitudine e longitudine. Anche i seggi, a cui afferiscono una o più sezioni, sono geolocalizzati come punti, mentre aree statistiche, zone e quartieri sono aree, quindi definite da un un insieme di coordinate.
+
+```{r schema-livelli, echo=FALSE}
+quartieri = readRDS(paste0(pl, "data/general-porpuse/quartieri.rds"))
+zone = readRDS(paste0(pl, "data/general-porpuse/zone.rds"))
+aree_statistiche = readRDS(paste0(pl, "data/general-porpuse/aree_statistiche.rds"))
+sezioni = readRDS(paste0(pl, "data/general-porpuse/sezioni.rds"))
+civici_sezioni = readRDS(paste0(pl, "data/general-porpuse/civici_sezioni.rds"))
+
+levels_dm = dm(quartieri, zone, aree_statistiche, sezioni, civici_sezioni) %>%
+  ### primary keys ###
+  dm_add_pk(quartieri, id_quartiere) %>%
+  dm_add_pk(zone, id_zona) %>%
+  dm_add_pk(aree_statistiche, id_area_statistica) %>%
+  dm_add_pk(sezioni, id_sezione) %>%
+  dm_add_pk(civici_sezioni, id_civico) %>%
+  ### foreign keys ###
+  dm_add_fk(zone, id_quartiere, quartieri) %>%
+  dm_add_fk(aree_statistiche, id_zona, zone) %>%
+  dm_add_fk(sezioni, id_area_statistica, aree_statistiche) %>%
+  dm_add_fk(civici_sezioni, id_area_statistica, aree_statistiche) %>%
+  dm_add_fk(civici_sezioni, id_sezione, sezioni)
+
+levels_dm %>%
+  dm_set_colors(black = everything()) %>%
+  dm_draw(view_type = "all", 
+          edge_attrs = 'style="dashed"',
+          columnArrows = FALSE
+          )
+```
+
+### Dato elettorale
+
+Il dato elettorale in sé dipende dal tipo di elezioni (e di leggi elettorali) ma essenzialmente è sempre presente una (o più) tabelle del voto per lista (senato, parlamento, consiglio comunale/regionale) e una (o più) tabelle del voto per preferenza di candidato (senatore, parlamentare o sindaco). Il dato è (sempre) presente a livello di singola sezione elettorale e (spesso) in relazione al numero di iscritti per sezione, permettendoci di confrontare anni diversi anche considerando l'astensione.
+
+Uno schema di esempio sono le elezioni politiche tenutesi il 25 settembre 2022:
+
+```{r schema-voto, echo=FALSE}
+camera_affluenza = readRDS(paste0(pl, "data/2022-politiche/camera_affluenza.rds"))
+camera_plurinominale_voti = readRDS(paste0(pl, "data/2022-politiche/camera_plurinominale_voti.rds"))
+camera_uninominale_voti = readRDS(paste0(pl, "data/2022-politiche/camera_uninominale_voti.rds"))
+senato_affluenza = readRDS(paste0(pl, "data/2022-politiche/senato_affluenza.rds"))
+senato_plurinominale_voti = readRDS(paste0(pl, "data/2022-politiche/senato_plurinominale_voti.rds"))
+senato_uninominale_voti = readRDS(paste0(pl, "data/2022-politiche/senato_uninominale_voti.rds"))
+
+elections_dm = dm(sezioni,
+                  camera_plurinominale_voti, camera_uninominale_voti, camera_affluenza,
+                  senato_plurinominale_voti, senato_uninominale_voti, senato_affluenza) %>%
+  ### primary key ###
+  dm_add_pk(sezioni, id_sezione) %>%
+  ### foreign keys ###
+  dm_add_fk(camera_plurinominale_voti, id_sezione, sezioni) %>%
+  dm_add_fk(camera_uninominale_voti, id_sezione, sezioni) %>%
+  dm_add_fk(camera_affluenza, id_sezione, sezioni) %>%
+  dm_add_fk(senato_plurinominale_voti, id_sezione, sezioni) %>%
+  dm_add_fk(senato_uninominale_voti, id_sezione, sezioni) %>%
+  dm_add_fk(senato_affluenza, id_sezione, sezioni)
+
+elections_dm %>%
+  dm_set_colors("#5CA2DB" = everything(),
+                black = sezioni) %>%
+  dm_draw(view_type = "all",
+          edge_attrs = 'style="dashed"',
+          columnArrows = FALSE,
+          rankdir = "BT"
+          )
+```
+
+## Qualità
+
+Volendo rimarcare il grande lavoro svolto dal team Open Data Bologna, la confrontabilità dei risultati elettorali tra anni e/o tornate elettorali diverse non è sempre possibile. Tuttavia, non è neppure possibile trovare altre fonti dati accessibili con un livello di dettaglio così alto. Per questa ragione sono stati, necessari alcuni aggiustamenti, in particolare nell'imputare il corpo elettorale o nell'attribuire una geolocalizzazione a seggi e sezioni.
+
+```{r qualità-tabella, echo=FALSE}
+images_url = "https://raw.githubusercontent.com/FlavioLeccese92/elections-bologna/main/docs/images/"
+tibble(anno = c(2004, 2006, 2008, 2009, 2009, 2011,
+                2013, 2014, 2014, 2016, 2018, 2019, 
+                2020, 2021, 2022),
+       data = c("2004-06-12", "2006-04-09", "2008-04-13", "2009-06-06", "2009-06-06", "2011-05-15",
+                "2013-02-24", "2014-05-25", "2014-11-23", "2016-06-05", "2018-03-04", "2019-05-26",
+                "2020-01-26", "2021-10-03", "2022-09-25"),
+       votazione = c("Comunali", "Politiche", "Politiche", "Comunali", "Europee", "Comunali",
+                     "Politiche", "Europee", "Regionali", "Comunali", "Politiche", "Europee", 
+                     "Regionali", "Comunali", "Politiche"),
+       dati = c(TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, 
+                TRUE, TRUE, FALSE, TRUE, TRUE, TRUE,
+                TRUE, TRUE, TRUE),
+       iscritti_sezione = c(FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, 
+                            TRUE, TRUE, FALSE, TRUE, TRUE, TRUE,
+                            TRUE, TRUE, TRUE),
+       civici_sezione = c("No", "No", "No", "No", "No", "No",
+                          "Sì", "No", "No", "No", "Sì", "No", 
+                          "No", "Sì", "Scelto")) %>%
+  mutate(votazione_img = case_when(votazione == "Comunali" ~ "bandiera-comune-bologna.png",
+                                   votazione == "Regionali" ~ "bandiera-emilia-romagna.png",
+                                   votazione == "Politiche" ~ "bandiera-italia.png",
+                                   votazione == "Europee" ~ "bandiera-unione-europea.png",
+                                   TRUE ~ "NA") %>% paste0(images_url, .),
+         .before = "votazione") %>%
+  arrange(desc(data)) %>%
+  reactable(.,
+            height = 350, pagination = FALSE,
+            fullWidth = FALSE, striped = FALSE, width = "100%", borderless = TRUE,
+            columns = list(
+              anno = colDef(name = "Anno", width = 80, style = list(fontWeight = "bold")),
+              data = colDef(name = "Data", width = 120, format = colFormat(date = TRUE)),
+              votazione_img = colDef(name = "", width = 50,
+                                     style = background_img(height = "20px", width = "30px", position = "right"),
+                                     align = "right"),
+              votazione = colDef(name = "Votazione", width = 120, align = "left"),
+              dati = colDef(name = "Votanti*", width = 150, align = "center",
+                            cell = JS("function(cellInfo) {return cellInfo.value === false ? '\u274c Assenti' : '\u2714\ufe0f Presenti'}")),
+              iscritti_sezione = colDef(name = "Iscritti*", width = 120, align = "center",
+                            cell = JS("function(cellInfo) {return cellInfo.value === false ? '\u274c Assenti' : '\u2714\ufe0f Presenti'}")),
+              civici_sezione = colDef(name = "Civici*", width = 120, align = "center",
+                                      cell = JS("function(cellInfo) {
+                                      var decode = {No : '\u274c Assenti', Sì : '\u2714\ufe0f Presenti', Scelto : '\u2B50 Scelto'}; return decode[cellInfo.value];}"))
+            ),
+            style = list(width = 800)
+  )
+
+```
+```{r qualità-tabella-note, echo=FALSE}
+div(style = "margin-top: 10px; margin-bottom: 20px;",
+  tags$h6(style = "margin: 0px;", "Votanti*: distribuzione assoluta del voto tra partiti e candidati per singola sezione elettorale"),
+  tags$h6(style = "margin: 0px;", "Iscritti*: aventi diritto al voto per singola sezione"),
+  tags$h6(style = "margin: 0px;", "Civici*: tabella di associazione tra numeri civici degli aventi diritto al voto e sezioni elettorali")
+)
+```
+
+# Elaborazioni
+
+Una volta scaricati le tabelle con dati elettorali e gerarchie territoriali dal portale [Open Data Bologna](https://opendata.comune.bologna.it/pages/home/) sono necessarie alcune elaborazioni
+per poter navigare agevolmente tra le diverse informazioni e condurre analisi verticali e longitudinali.
+
+## Numeri civici come poligoni
+
+Come detto precendentemente, i numeri civici associati a ciascuna sezione elettorale sono
+rappresentati come punti geografici. Tuttavia per una rappresentazione 
+spaziale più efficace può essere interessante "espandere" questi punti alla dimensione
+di poligono. Come diretta conseguenza anche la sezione elettorale (massimo dettaglio del dato
+elettorale) potranno essere rappresentate come un poligono dato dall'unione dei 
+singoli poligoni di indirizzi.
+
+In questo modo, se volessimo visualizzare sulla mappa di Bologna la distribuzione del voto per un partito
+con diverse intensità di colore, avremo l'intera città coperta da poligoni colorati.
+
+Naturalmente questa trasformazione può portare distorsioni nella rappresentazione, in quanto
+un poligono sarà tanto più esteso quanto più l'indirizzo corrispondente sarà distante da 
+altri indirizzi. Per cercare di ovviare a questo problema imprescindibile, abbiamo
+vincolato ciascun poligono secondo due criteri:
+
+1. Criterio delle `aree_stradali`: un numero civico non può espandersi al di là 
+del poligono delimitato dalle aree stradali che lo contengono.
+
+```{r esempio-dataset delle aree stradali, warning=FALSE, indent = "     ", out.height=300}
+aree_stradali_polygons_subample = 
+  readRDS(paste0(pl, "data/polygons/aree_stradali_polygons.rds")) %>% st_set_crs(4326) %>%
+  st_intersection(tibble(point = "center", long = 11.3493292, lat = 44.492245) %>%
+                    st_as_sf(coords = c("long", "lat"), crs = 4326) %>%
+                    st_buffer(dist = 1000))
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron",
+                   options = providerTileOptions(minZoom = 14, maxZoom = 18, className = "dark-map-tiles")) %>%
+  setView(lng = 11.3493292, lat = 44.492245, zoom = 14) %>%
+  addPolygons(data = aree_stradali_polygons_subample,
+              fillColor = "#5CA2DB", fillOpacity = 0.2,
+              color = "#5CA2DB", opacity = 0.8,
+              weight = 1)
+  
+```
+```{r note-dataset delle aree stradali, echo=FALSE}
+tags$h6(style = "margin-left: 40px;",
+        "Dataset delle aree stradali (",
+        tags$a(href = "https://opendata.comune.bologna.it/explore/dataset/aree-stradali/information/",
+                      "link"), ")")
+```
+
+2. Criterio delle `aree_statistiche`: un numero civico non può espandersi al di là 
+del poligono delimitato dalle aree statistiche che lo contengono.
+
+```{r esempio-dataset delle aree statistiche, warning=FALSE, indent = "     ", out.height=300}
+aree_statistiche_polygons_subample = 
+  readRDS(paste0(pl, "data/polygons/aree_statistiche_polygons.rds")) %>% st_set_crs(4326) %>%
+  st_intersection(tibble(point = "center", long = 11.3493292, lat = 44.492245) %>%
+            st_as_sf(coords = c("long", "lat"), crs = 4326) %>%
+            st_buffer(dist = 1000))
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron",
+                   options = providerTileOptions(minZoom = 14, maxZoom = 18, className = "dark-map-tiles")) %>%
+  setView(lng = 11.3493292, lat = 44.492245, zoom = 14) %>%
+  addPolygons(data = aree_statistiche_polygons_subample,
+              fillColor = "#5CA2DB", fillOpacity = 0.2,
+              color = "#5CA2DB", opacity = 0.8,
+              weight = 1)
+  
+```
+```{r note-dataset delle aree statistiche, echo=FALSE}
+tags$h6(style = "margin-left: 40px;",
+        "Dataset delle aree statistiche (",
+        tags$a(href = "https://opendata.comune.bologna.it/explore/dataset/aree-statistiche/information/",
+                      "link"), ")")
+```
