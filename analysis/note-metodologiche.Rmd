@@ -236,8 +236,7 @@ di poligono. Come diretta conseguenza anche la sezione elettorale (massimo detta
 elettorale) potranno essere rappresentate come un poligono dato dall'unione dei 
 singoli poligoni di indirizzi.
 
-In questo modo, se volessimo visualizzare sulla mappa di Bologna la distribuzione del voto per un partito
-con diverse intensità di colore, avremo l'intera città coperta da poligoni colorati.
+In questo modo, se volessimo visualizzare sulla mappa di Bologna la distribuzione del voto per un partito con diverse intensità di colore, avremo l'intera città coperta da poligoni colorati.
 
 Naturalmente questa trasformazione può portare distorsioni nella rappresentazione, in quanto
 un poligono sarà tanto più esteso quanto più l'indirizzo corrispondente sarà distante da 
@@ -248,20 +247,37 @@ vincolato ciascun poligono secondo due criteri:
 del poligono delimitato dalle aree stradali che lo contengono.
 
 ```{r esempio-dataset delle aree stradali, warning=FALSE, indent = "     ", out.height=300, out.width="100%"}
-aree_stradali_polygons_subample = 
+aree_stradali_polygons_subsample = 
   readRDS(paste0(pl, "data/polygons/aree_stradali_polygons.rds")) %>% st_set_crs(4326) %>%
   st_intersection(tibble(point = "center", long = 11.3493292, lat = 44.492245) %>%
                     st_as_sf(coords = c("long", "lat"), crs = 4326) %>%
-                    st_buffer(dist = 1000))
+                    st_buffer(dist = 1000)) %>%
+  suppressWarnings()
+
+label = inner_join(aree_stradali_polygons_subsample %>% st_drop_geometry(),
+                   readRDS(paste0(pl, "data/general-porpuse/aree_stradali.rds")) %>%
+                     distinct(codice_ogg, descrizione = descrizion, sede, origine, fondo, perimetro, area = area_ogg),
+             by = "codice_ogg") %>%
+  mutate(label = sprintf("Codice area stradale<b> %s</b><br/>
+                          Descrizione<b> %s</b><br/>
+                          Sede<b> %s</b> | Origine<b> %s</b> | Fondo<b> %s</b><br/>
+                          Perimetro<b> %s m</b> | Area<b> %s mq</b>",
+                         codice_ogg, descrizione, sede, origine, fondo,
+                         perimetro, area) %>% lapply(htmltools::HTML)) %>%
+  select(label) %>% pull()
 
 leaflet() %>%
   addProviderTiles("CartoDB.Positron",
                    options = providerTileOptions(minZoom = 14, maxZoom = 18, className = "dark-map-tiles")) %>%
   setView(lng = 11.3493292, lat = 44.492245, zoom = 14) %>%
-  addPolygons(data = aree_stradali_polygons_subample,
+  addPolygons(data = aree_stradali_polygons_subsample,
               fillColor = "#5CA2DB", fillOpacity = 0.2,
               color = "#5CA2DB", opacity = 0.8,
-              weight = 1)
+              weight = 1, label = label,
+              highlightOptions = highlightOptions(
+                fillColor = "white",
+                weight = 2, bringToFront = TRUE)
+              )
   
 ```
 ```{r note-dataset delle aree stradali, echo=FALSE}
@@ -275,21 +291,34 @@ tags$h6(style = "margin-left: 40px;",
 del poligono delimitato dalle aree statistiche che lo contengono.
 
 ```{r esempio-dataset delle aree statistiche, warning=FALSE, indent = "     ", out.height=300, out.width="100%"}
-aree_statistiche_polygons_subample = 
+aree_statistiche_polygons_subsample = 
   readRDS(paste0(pl, "data/polygons/aree_statistiche_polygons.rds")) %>% st_set_crs(4326) %>%
   st_intersection(tibble(point = "center", long = 11.3493292, lat = 44.492245) %>%
             st_as_sf(coords = c("long", "lat"), crs = 4326) %>%
-            st_buffer(dist = 1000))
+            st_buffer(dist = 1000)) %>%
+  suppressWarnings()
+
+label = inner_join(aree_statistiche_polygons_subsample %>% st_drop_geometry(),
+                   readRDS(paste0(pl, "data/general-porpuse/aree_statistiche.rds")) %>%
+                     distinct(id_area_statistica, nome_area_statistica),
+             by = "id_area_statistica") %>%
+  mutate(label = sprintf("Codice area statistica<b> %s</b><br/>
+                          Nome area statistica<b> %s</b>",
+                         id_area_statistica, nome_area_statistica) %>% lapply(htmltools::HTML)) %>%
+  select(label) %>% pull()
 
 leaflet() %>%
   addProviderTiles("CartoDB.Positron",
                    options = providerTileOptions(minZoom = 14, maxZoom = 18, className = "dark-map-tiles")) %>%
   setView(lng = 11.3493292, lat = 44.492245, zoom = 14) %>%
-  addPolygons(data = aree_statistiche_polygons_subample,
+  addPolygons(data = aree_statistiche_polygons_subsample,
               fillColor = "#5CA2DB", fillOpacity = 0.2,
               color = "#5CA2DB", opacity = 0.8,
-              weight = 1)
-  
+              weight = 1, label = label,
+              highlightOptions = highlightOptions(
+                fillColor = "white",
+                weight = 2, bringToFront = TRUE)
+              )
 ```
 ```{r note-dataset delle aree statistiche, echo=FALSE}
 tags$h6(style = "margin-left: 40px;",
@@ -298,4 +327,48 @@ tags$h6(style = "margin-left: 40px;",
                       "link"), ")")
 ```
 
+3. Il risultato:
+
+```{r esempio-dataset delle sezioni, warning=FALSE, indent = "     ", out.height=300, out.width="100%"}
+sezioni_polygons_subsample = 
+    readRDS(paste0(pl, "data/polygons/sezioni_polygons.rds")) %>% 
+    st_set_crs(4326) %>% st_make_valid() %>%
+    st_intersection(tibble(point = "center", long = 11.3493292, lat = 44.492245) %>%
+                      st_as_sf(coords = c("long", "lat"), crs = 4326) %>%
+                      st_buffer(dist = 1000)) %>%
+    suppressWarnings()
+  
+  label = inner_join(sezioni_polygons_subsample %>% st_drop_geometry(),
+                     readRDS(paste0(pl, "data/general-porpuse/sezioni.rds")) %>%
+                       distinct(id_sezione, id_seggio, indirizzo),
+                     by = "id_sezione") %>%
+    mutate(label = sprintf("Codice sezione<b> %s</b><br/>
+                          Codice Seggio<b> %s</b><br/>
+                          Indirizzo<b> %s</b>",
+                           id_sezione, id_seggio, indirizzo) %>% lapply(htmltools::HTML)) %>%
+    select(label) %>% pull()
+  
+  leaflet() %>%
+    addProviderTiles("CartoDB.Positron",
+                     options = providerTileOptions(minZoom = 14, maxZoom = 18, className = "dark-map-tiles")) %>%
+    setView(lng = 11.3493292, lat = 44.492245, zoom = 14) %>%
+    addPolygons(data = sezioni_polygons_subsample,
+                fillColor = "#5CA2DB", fillOpacity = 0.2,
+                color = "#5CA2DB", opacity = 0.8,
+                weight = 1, label = label,
+                highlightOptions = highlightOptions(
+                  fillColor = "white",
+                  weight = 2, bringToFront = TRUE)
+    )
+```
+```{r note-dataset delle sezioni, echo=FALSE}
+tags$h6(style = "margin-left: 40px; margin-bottom: 0px;",
+        "Dataset delle sezioni elettorali per il 2021 (",
+        tags$a(href = "https://opendata.comune.bologna.it/explore/dataset/elezioni-amministrative-2021-sezioni-elettorali/information/",
+                      "link"), ")")
+tags$h6(style = "margin-left: 40px; margin-top: 0px;",
+        "Dataset dei civici-sezioni elettorali per il 2022 (",
+        tags$a(href = "https://opendata.comune.bologna.it/explore/dataset/elezioni2022_civici_sezioni/information/",
+                      "link"), ")")
+```
 
