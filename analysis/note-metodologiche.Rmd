@@ -170,8 +170,8 @@ images_url = "https://raw.githubusercontent.com/FlavioLeccese92/elections-bologn
 tibble(anno = c(2004, 2006, 2008, 2009, 2009, 2011,
                 2013, 2014, 2014, 2016, 2018, 2019, 
                 2020, 2021, 2022),
-       data = c("2004-06-12", "2006-04-09", "2008-04-13", "2009-06-06", "2009-06-06", "2011-05-15",
-                "2013-02-24", "2014-05-25", "2014-11-23", "2016-06-05", "2018-03-04", "2019-05-26",
+       data = c("2004-06-12", "2006-04-09", "2008-04-13", "2009-06-07", "2009-06-07", "2011-05-15",
+                "2013-02-24", "2014-05-24", "2014-11-23", "2016-06-05", "2018-03-04", "2019-05-26",
                 "2020-01-26", "2021-10-03", "2022-09-25"),
        votazione = c("Comunali", "Politiche", "Politiche", "Comunali", "Europee", "Comunali",
                      "Politiche", "Europee", "Regionali", "Comunali", "Politiche", "Europee", 
@@ -374,3 +374,10 @@ tags$h6(style = "margin-left: 40px; margin-top: 0px;",
 
 ## Riconciliazione `nome_lista`
 
+Un altro aspetto da tenere in considerazione è la differente nomenclatura con cui la stessa
+lista si può presentare in diverse tornate elettorali. Per agevolare la riconciliazione è 
+stata creata la tabella `liste_riconciliate`, di seguito un estratto:
+
+```{r esempio-liste_riconciliate, echo=FALSE}
+readRDS(paste0(pl, "data/general-porpuse/liste_conciliate.rds"))
+```
