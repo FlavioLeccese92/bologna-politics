@@ -42,7 +42,7 @@ tree_table = tibble(
           "https://elezionistorico.interno.gov.it/index.php?tpel=S&dtel=09/04/2006&tpa=I&tpe=C&lev0=0&levsut0=0&lev1=8&levsut1=1&lev2=13&levsut2=2&levsut3=3&ne1=8&ne2=13&es0=S&es1=S&es2=S&es3=N&ms=S&ne3=130060&lev3=60",
           "https://elezionistorico.interno.gov.it/index.php?tpel=G&dtel=12/06/2004&tpa=I&tpe=C&lev0=0&levsut0=0&lev1=8&levsut1=1&lev2=13&levsut2=2&levsut3=3&ne1=8&ne2=13&es0=S&es1=S&es2=S&es3=N&ms=S&ne3=130060&lev3=60"),
   scrape_proc_contrassegni = c(3, 3, 2, 1, 1, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2),
-  scrape_proc_risultati = c(NA, NA, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1)
+  scrape_proc_risultati = c(3, 3, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1)
 )  %>%
   mutate(key = paste0(anno, "-", votazione), .before = 1)%>%
   mutate(prefix_eligendo = paste0("./data/", key, "/eligendo_", organo),
@@ -64,8 +64,23 @@ for(i in seq_len(nrow(tree_table))){
   file.remove(paste0(tree_table$temp_files[i], "/", files[!grepl(".png|.PNG", files)])) %>%
     suppressWarnings()
 
-  if(!is.na(tree_table$scrape_proc_risultati[i])){
-
+  if(tree_table$scrape_proc_risultati[i] == 3){
+    temp_eligendo_risultati =  url %>%
+      read_html() %>%
+      html_nodes("#superTable") %>%
+      html_table() %>%
+      .[[1]] %>% .[c(3,4)] %>%
+      rename(nome_lista_eligendo = 1, voti_validi = 2) %>%
+      mutate(temp = ifelse(is.na(voti_validi), 1, 0) %>% cumsum(),
+             voti_validi = voti_validi*1000,
+             voti_validi = voti_validi %>% ifelse(.%%1000==0, ./1000, .)) %>%
+      filter(!is.na(voti_validi), !(nome_lista_eligendo %in% c("Uninominale", "Proporzionale"))) %>%
+      group_by(temp) %>%
+      mutate(nome_coalizione_eligendo = first(nome_lista_eligendo) %>%
+               gsub("ELETTO", "", .) %>% trimws(), .before = 1) %>%
+      slice(-1) %>% ungroup() %>%
+      select(-temp)
+  }else{
     if(tree_table$scrape_proc_risultati[i] == 1){columns = c(1,2,6)
     }else if(tree_table$scrape_proc_risultati[i] == 2){columns = c(1,2,3)}
 
@@ -83,82 +98,78 @@ for(i in seq_len(nrow(tree_table))){
              !grepl("totale|totali", tolower(nome_coalizione_eligendo)),
              nome_lista_eligendo != nome_coalizione_eligendo) %>%
       mutate(nome_coalizione_eligendo = nome_coalizione_eligendo %>% ifelse(. == "temp", nome_lista_eligendo, .))
-
-    temp_open_data_risultati = readRDS(tree_table$temp_rds[i]) %>%
-      group_by(nome_lista) %>% summarise(voti_validi = sum(voti_validi, na.rm = TRUE), .groups = "drop")
-
-    temp_nome_lista_conciliazione =
-      left_join(
-        temp_open_data_risultati %>%
-          arrange(desc(voti_validi), nome_lista) %>%
-          {if (tree_table$anno[i] == "2013" && tree_table$organo[i] == "senato"){bind_cols(., row_id = c(1:9, 11, 13, 10, 12, 14:18))}
-           else mutate(., row_id = row_number())} %>%
-          select(nome_lista_opendata = nome_lista, row_id),
-        temp_eligendo_risultati %>% arrange(desc(voti_validi), nome_lista_eligendo) %>%
-          mutate(row_id = row_number()) %>%
-          select(nome_lista_eligendo, nome_coalizione_eligendo, row_id),
-        by = "row_id"
-      ) %>% select(-row_id)
-
-    open_data_risultati = temp_open_data_risultati %>%
-      mutate(key = tree_table$key[i], organo = tree_table$organo[i], .before = 1) %>%
-      bind_rows(open_data_risultati, .)
-
-    eligendo_risultati = temp_eligendo_risultati %>%
-      mutate(key = tree_table$key[i], organo = tree_table$organo[i], .before = 1) %>%
-      bind_rows(eligendo_risultati, .)
-
-    nome_lista_conciliazione = temp_nome_lista_conciliazione %>%
-      mutate(key = tree_table$key[i], organo = tree_table$organo[i], .before = 1) %>%
-      bind_rows(nome_lista_conciliazione, .)
-
   }
+
+  temp_open_data_risultati = readRDS(tree_table$temp_rds[i]) %>%
+    group_by(nome_lista) %>% summarise(voti_validi = sum(voti_validi, na.rm = TRUE), .groups = "drop")
+
+  temp_nome_lista_conciliazione =
+    left_join(
+      temp_open_data_risultati %>%
+        arrange(desc(voti_validi), nome_lista) %>%
+        {if (tree_table$anno[i] == "2013" && tree_table$organo[i] == "senato"){bind_cols(., row_id = c(1:9, 11, 13, 10, 12, 14:18))}
+         else mutate(., row_id = row_number())} %>%
+        select(nome_lista_opendata = nome_lista, row_id),
+      temp_eligendo_risultati %>% arrange(desc(voti_validi), nome_lista_eligendo) %>%
+        mutate(row_id = row_number()) %>%
+        select(nome_lista_eligendo, nome_coalizione_eligendo, row_id),
+      by = "row_id"
+    ) %>% select(-row_id)
+
+  open_data_risultati = temp_open_data_risultati %>%
+  mutate(key = tree_table$key[i], organo = tree_table$organo[i], .before = 1) %>%
+  bind_rows(open_data_risultati, .)
+
+  eligendo_risultati = temp_eligendo_risultati %>%
+    mutate(key = tree_table$key[i], organo = tree_table$organo[i], .before = 1) %>%
+    bind_rows(eligendo_risultati, .)
+
+  nome_lista_conciliazione = temp_nome_lista_conciliazione %>%
+    mutate(key = tree_table$key[i], organo = tree_table$organo[i], .before = 1) %>%
+    bind_rows(nome_lista_conciliazione, .)
 
   if(tree_table$scrape_proc_contrassegni[i] == 1){
      temp_contrassegni = tibble(
-                      nome_lista = url %>%
-                        read_html() %>%
-                        html_nodes(".simbolo_lista > a") %>%
-                        html_attr("title"),
-                      image = url %>%
-                        read_html() %>%
-                        html_nodes(".simbolo_lista > a > img") %>%
-                        html_attr("src") %>%
-                        gsub("\\./", "", .)
-                    )
+       nome_lista_eligendo = url %>%
+         read_html() %>%
+         html_nodes(".simbolo_lista > a") %>%
+         html_attr("title"),
+       image = url %>%
+         read_html() %>%
+         html_nodes(".simbolo_lista > a > img") %>%
+         html_attr("src") %>%
+         gsub("\\./", "", .)
+       )
 
     file.remove(paste0(tree_table$temp_files[i], "/e-logo-white.png"))
 
   }else if(tree_table$scrape_proc_contrassegni[i] == 2){
      temp_contrassegni = tibble(
-                      nome_lista = url %>%
-                        read_html() %>%
-                        html_nodes(".simbolo_lista > img") %>%
-                        html_attr("title"),
-                      image = url %>%
-                        read_html() %>%
-                        html_nodes(".simbolo_lista > img") %>%
-                        html_attr("src") %>%
-                        gsub("\\./", "", .)
-                    )
+       nome_lista_eligendo = url %>%
+         read_html() %>%
+         html_nodes(".simbolo_lista > img") %>%
+         html_attr("title"),
+       image = url %>%
+         read_html() %>%
+         html_nodes(".simbolo_lista > img") %>%
+         html_attr("src") %>%
+         gsub("\\./", "", .)
+       )
 
     file.remove(paste0(tree_table$temp_files[i], "/e-logo-white.png"))
 
   }else{
      temp_contrassegni = tibble(
-                      nome_lista = url %>%
-                        read_html() %>%
-                        html_nodes("#superTableContrassegni") %>%
-                        html_table() %>% .[[1]] %>%
-                        select(`Partito/Movimento/Gruppo politico`) %>%
-                        na.omit() %>% pull(),
-                      image = url %>%
-                        read_html() %>%
-                        html_nodes("#superTableContrassegni") %>%
-                        html_element("tbody") %>% html_nodes(".dt-center") %>%
-                        html_element("img") %>% html_attr("src") %>%
-                        gsub("\\./", "", .)
-                    )
+       nome_lista_eligendo = url %>%
+         read_html() %>%
+         html_nodes("#superTable > tbody > tr> .dt-center > img") %>%
+         html_attr("title"),
+       image = url %>%
+         read_html() %>%
+         html_nodes("#superTable > tbody > tr> .dt-center > img") %>%
+         html_attr("src") %>%
+         gsub("\\./", "", .)
+     )
   }
 
   contrassegni = temp_contrassegni %>%

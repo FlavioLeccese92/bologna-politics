@@ -22,7 +22,7 @@ senato_plurinominale_voti = x[["records"]][["fields"]]
 senato_voti = senato_plurinominale_voti %>%
   as_tibble() %>%
   select(id_sezione = sezione,
-         id_lista = numero,
+         id_lista = numero_liste,
          nome_lista,
          voti_validi) %>%
   arrange(id_sezione, id_lista)
@@ -67,7 +67,7 @@ camera_plurinominale_voti = x[["records"]][["fields"]]
 camera_voti = camera_plurinominale_voti %>%
   as_tibble() %>%
   select(id_sezione = sezione,
-         id_lista = numero,
+         id_lista = numero_liste,
          nome_lista,
          voti_validi) %>%
   arrange(id_sezione, id_lista)
