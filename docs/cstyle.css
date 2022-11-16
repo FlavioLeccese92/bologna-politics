@@ -10,13 +10,52 @@ img.image-thumb {border: 0px!important;}
 .dark-map-tiles {filter: var(--dark-map-filter);}
 
 body {
+    overflow-y: overlay;
     background-color: var(--main-background);
 }
-
+.page-content code, code{
+   color: #c7254e;
+   background: var(--inline-code-background-politics);
+   font-family: var(--code-font);
+}
+/* SCROLLBAR */
+::-webkit-scrollbar {
+  width: 20px;
+  height: 20px;
+}
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner {
+  background-color: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #d6dee1;
+  border-radius: 20px;
+  border: 6px solid transparent;
+  background-clip: content-box;
+}
+/* TABLE */
 .ReactTable {
   display: flex!important; align-items: center!important; margin: auto!important;
-  background: var(--main-background);
+  background: var(--rt-background-color);
 }
+.rt-expander:after {
+  border-top: var(--rt-expander-color);
+}
+.politics-class, .leaflet-container {
+  font-family: Karla, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  line-height: normal;
+  font-weight: 400;
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+}
+.rt-th {
+  font-weight: 400;
+}
+.number {
+  font-family: "Fira Mono", Consolas, Monaco, monospace;
+  font-size: 0.84375rem;
+  white-space: pre;
+}
+/* DB SCHEMA VIZ */
 .grViz {
   width: 100%!important; height: auto!important;
 }

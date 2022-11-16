@@ -16,12 +16,18 @@ function set_light_style_additional() {
     const style = document.documentElement.style;
     style.setProperty('--dark-image-filter', 'none');
     style.setProperty('--dark-map-filter', 'none');
+    style.setProperty('--rt-background-color', 'white');
+    style.setProperty('--rt-expander-color', '7px solid rgba(0,0,0,.8)');
+    style.setProperty('--inline-code-background-politics', '#f9f2f4');
 }
 function set_dark_style_additional() {
 
     const style = document.documentElement.style;
     style.setProperty('--dark-image-filter', 'brightness(0) invert(1)');
     style.setProperty('--dark-map-filter', 'brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.9)');
+    style.setProperty('--rt-background-color', '#373c49');
+    style.setProperty('--rt-expander-color', '7px solid rgba(255,255,255,.8)');
+    style.setProperty('--inline-code-background-politics', '#373c49');
     
 }
 // Apply CSS variables defined above
@@ -132,22 +138,22 @@ Uno schema di esempio sono le elezioni politiche tenutesi il 25 settembre 2022:
 
 ```{r schema-voto, echo=FALSE}
 camera_affluenza = readRDS(paste0(pl, "data/2022-politiche/camera_affluenza.rds"))
-camera_plurinominale_voti = readRDS(paste0(pl, "data/2022-politiche/camera_plurinominale_voti.rds"))
+camera_voti = readRDS(paste0(pl, "data/2022-politiche/camera_voti.rds"))
 camera_uninominale_voti = readRDS(paste0(pl, "data/2022-politiche/camera_uninominale_voti.rds"))
 senato_affluenza = readRDS(paste0(pl, "data/2022-politiche/senato_affluenza.rds"))
-senato_plurinominale_voti = readRDS(paste0(pl, "data/2022-politiche/senato_plurinominale_voti.rds"))
+senato_voti = readRDS(paste0(pl, "data/2022-politiche/senato_voti.rds"))
 senato_uninominale_voti = readRDS(paste0(pl, "data/2022-politiche/senato_uninominale_voti.rds"))
 
 elections_dm = dm(sezioni,
-                  camera_plurinominale_voti, camera_uninominale_voti, camera_affluenza,
-                  senato_plurinominale_voti, senato_uninominale_voti, senato_affluenza) %>%
+                  camera_voti, camera_uninominale_voti, camera_affluenza,
+                  senato_voti, senato_uninominale_voti, senato_affluenza) %>%
   ### primary key ###
   dm_add_pk(sezioni, id_sezione) %>%
   ### foreign keys ###
-  dm_add_fk(camera_plurinominale_voti, id_sezione, sezioni) %>%
+  dm_add_fk(camera_voti, id_sezione, sezioni) %>%
   dm_add_fk(camera_uninominale_voti, id_sezione, sezioni) %>%
   dm_add_fk(camera_affluenza, id_sezione, sezioni) %>%
-  dm_add_fk(senato_plurinominale_voti, id_sezione, sezioni) %>%
+  dm_add_fk(senato_voti, id_sezione, sezioni) %>%
   dm_add_fk(senato_uninominale_voti, id_sezione, sezioni) %>%
   dm_add_fk(senato_affluenza, id_sezione, sezioni)
 
@@ -195,8 +201,9 @@ tibble(anno = c(2004, 2006, 2008, 2009, 2009, 2011,
   reactable(.,
             height = 350, pagination = FALSE,
             fullWidth = FALSE, striped = FALSE, width = "100%", borderless = TRUE,
+            bordered = TRUE,
             columns = list(
-              anno = colDef(name = "Anno", width = 80, style = list(fontWeight = "bold")),
+              anno = colDef(name = "Anno", width = 80),
               data = colDef(name = "Data", width = 120, format = colFormat(date = TRUE)),
               votazione_img = colDef(name = "", width = 50,
                                      style = background_img(height = "20px", width = "30px", position = "right"),
@@ -210,12 +217,12 @@ tibble(anno = c(2004, 2006, 2008, 2009, 2009, 2011,
                                       cell = JS("function(cellInfo) {
                                       var decode = {No : '\u274c Assenti', Sì : '\u2714\ufe0f Presenti', Scelto : '\u2B50 Scelto'}; return decode[cellInfo.value];}"))
             ),
-            style = list(maxwidth = 800)
+  class = "politics-class"
   )
 
 ```
 ```{r qualità-tabella-note, echo=FALSE}
-div(style = "margin-top: 10px; margin-bottom: 20px;",
+div(style = "margin-top: 10px; margin-bottom: 20px;", class = "politics-class",
   tags$h6(style = "margin: 0px;", "Votanti*: distribuzione assoluta del voto tra partiti e candidati per singola sezione elettorale"),
   tags$h6(style = "margin: 0px;", "Iscritti*: aventi diritto al voto per singola sezione"),
   tags$h6(style = "margin: 0px;", "Civici*: tabella di associazione tra numeri civici degli aventi diritto al voto e sezioni elettorali")
@@ -281,7 +288,7 @@ leaflet() %>%
   
 ```
 ```{r note-dataset delle aree stradali, echo=FALSE}
-tags$h6(style = "margin-left: 40px;",
+tags$h6(style = "margin-left: 40px;", class = "politics-class",
         "Dataset delle aree stradali (",
         tags$a(href = "https://opendata.comune.bologna.it/explore/dataset/aree-stradali/information/",
                       "link"), ")")
@@ -321,7 +328,7 @@ leaflet() %>%
               )
 ```
 ```{r note-dataset delle aree statistiche, echo=FALSE}
-tags$h6(style = "margin-left: 40px;",
+tags$h6(style = "margin-left: 40px;", class = "politics-class",
         "Dataset delle aree statistiche (",
         tags$a(href = "https://opendata.comune.bologna.it/explore/dataset/aree-statistiche/information/",
                       "link"), ")")
@@ -362,11 +369,11 @@ sezioni_polygons_subsample =
     )
 ```
 ```{r note-dataset delle sezioni, echo=FALSE}
-tags$h6(style = "margin-left: 40px; margin-bottom: 0px;",
+tags$h6(style = "margin-left: 40px; margin-bottom: 0px;", class = "politics-class",
         "Dataset delle sezioni elettorali per il 2021 (",
         tags$a(href = "https://opendata.comune.bologna.it/explore/dataset/elezioni-amministrative-2021-sezioni-elettorali/information/",
                       "link"), ")")
-tags$h6(style = "margin-left: 40px; margin-top: 0px;",
+tags$h6(style = "margin-left: 40px; margin-top: 0px;", class = "politics-class",
         "Dataset dei civici-sezioni elettorali per il 2022 (",
         tags$a(href = "https://opendata.comune.bologna.it/explore/dataset/elezioni2022_civici_sezioni/information/",
                       "link"), ")")
@@ -374,10 +381,69 @@ tags$h6(style = "margin-left: 40px; margin-top: 0px;",
 
 ## Riconciliazione `nome_lista`
 
-Un altro aspetto da tenere in considerazione è la differente nomenclatura con cui la stessa
-lista si può presentare in diverse tornate elettorali. Per agevolare la riconciliazione è 
-stata creata la tabella `liste_riconciliate`, di seguito un estratto:
+Un'altra problematica da tenere in considerazione è la differente nomenclatura con cui la stessa
+lista si può presentare in diverse tornate elettorali per i dati presenti sul portale [Open Data](https://opendata.comune.bologna.it/pages/home/) di Bologna.
+
+Fortunatamente [Eligendo](https://elezionistorico.interno.gov.it/) non ha questo problema
+ed è possibile una riconciliazione del campo `nome_lista` che permetta un'associazione univoca
+tra i valori delle due fonte dati.
+
+La tabella di mapping `nome_lista_conciliazione` è stata creata per agevolare questa operazione:
 
 ```{r esempio-liste_riconciliate, echo=FALSE}
-readRDS(paste0(pl, "data/general-porpuse/liste_conciliate.rds"))
+readRDS(paste0(pl, "data/general-porpuse/nome_lista_conciliazione.rds")) %>% 
+  reactable(.,
+            height = 350, pagination = FALSE,
+            fullWidth = FALSE, striped = FALSE, width = "100%", borderless = TRUE,
+            bordered = TRUE,
+            groupBy = c("key", "organo"),
+            columns = list(
+              key = colDef(sticky = "left"),
+              organo = colDef(sticky = "left", aggregate = "unique"),
+              nome_lista_opendata = colDef(width = 250),
+              nome_lista_eligendo = colDef(width = 250),
+              nome_coalizione_eligendo = colDef(width = 250)
+            ),
+  class = "politics-class",
+  defaultExpanded = TRUE
+  )
 ```
+
+
+## Assegnazione `contrassegni`
+
+Un aspetto estetico importante è poter mostrare i contrassegni (loghi) di ciascuna lista
+in tabelle e visualizzazioni. Purtroppo non esiste una repository pubblica e organizzata che 
+li fornisca.
+
+Tuttavia, sempre su [Eligendo](https://elezionistorico.interno.gov.it/), nelle pagine 
+di riepilogo da dove abbiamo estratto i voti per partito sono presenti affiancati anche 
+i contrassegni (in qualità molto bassa).
+Sono stati quindi estratti e salvati all'interno della repository nei relativi percorsi
+delle tornate elettorali ed è stata creata la tabella  `contrassegni` che permetta l'associazione univoca
+con le liste:
+
+```{r esempio-contrassegni, echo=FALSE}
+readRDS(paste0(pl, "data/general-porpuse/contrassegni.rds")) %>% 
+  mutate(image = paste0("https://raw.githubusercontent.com/FlavioLeccese92/bologna-politics/main/data/",
+                        key, "/", image)) %>%
+  reactable(.,
+            height = 350, pagination = FALSE,
+            fullWidth = FALSE, striped = FALSE, width = "100%", borderless = TRUE, bordered = TRUE,
+            groupBy = c("nome_lista_eligendo"),
+            columns = list(
+              nome_lista_eligendo = colDef(width = 300, sticky = "left"),
+              image = colDef(
+                width = 100,
+                style = background_img(height = "50px", width = "50px", position = "center")),
+              key = colDef(),
+              organo = colDef()
+            ),
+  rowStyle = JS("{height: '65px'}"),
+  class = "politics-class",
+  defaultExpanded = TRUE
+)
+```
+
+
+
