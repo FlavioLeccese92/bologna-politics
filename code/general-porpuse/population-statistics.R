@@ -13,9 +13,8 @@ library(cli)
 options(cli.progress_bar_style = "fillsquares",
         cli.progress_show_after = 0)
 
+quartieri = readRDS("data/general-porpuse/quartieri.rds")
 zone = readRDS("data/general-porpuse/zone.rds")
-zone_coordinates = readRDS("data/general-porpuse/zone_coordinates.rds")
-liste_conciliate = readRDS("data/general-porpuse/liste_conciliate.rds")
 aree_statistiche = readRDS("data/general-porpuse/aree_statistiche.rds")
 
 
@@ -35,9 +34,9 @@ for(i in seq_along(2010:2021)){
   cli_progress_update(set = i)
   anno = (2010:2021)[i]
 
-  for(j in seq_len(length(unique(zone$nome_quartiere)))){
+  for(j in seq_len(length(unique(quartieri$nome_quartiere)))){
 
-    quartiere = unique(zone$nome_quartiere)[j]
+    quartiere = unique(quartieri$nome_quartiere)[j]
 
     # res = GET(paste0("https://opendata.comune.bologna.it/api/records/1.0/search/?dataset=popolazione-residente-per-stato-civile-eta-sessocittadinanza-quartiere-e-zona-se&q=&rows=10000&sort=-anno&facet=anno&facet=cittadinanza&facet=eta_grandi&facet=eta_quinquennali&facet=quartiere&facet=zona&facet=centro_storico_zone_periferiche&facet=stato_civile&facet=sesso&refine.anno=2021&refine.quartiere=", quartiere))
     res = GET(paste0("https://opendata.comune.bologna.it/api/records/1.0/search/?dataset=popolazione-residente-per-eta-sesso-cittadinanza-quartiere-zona-area-statistica-&q=&rows=10000&sort=anno&facet=anno&facet=area_statistica&facet=quartiere&facet=zona&facet=sesso&facet=eta_grandi&facet=eta&facet=cittadinanza&refine.anno=", anno,"&refine.quartiere=", quartiere))
@@ -51,12 +50,9 @@ for(i in seq_along(2010:2021)){
 cli_progress_done(); rm(i, anno, j, quartiere, res, x)
 
 popolazione_residente_as =
-  popolazione_residente_as  %>%
-    mutate(area_statistica = toupper(area_statistica)) %>%
-    left_join(aree_statistiche %>% distinct(id_area_statistica, id_zona, id_quartiere, nome_area_statistica),
-              by = c("area_statistica" = "nome_area_statistica")) %>%
-    select(anno, id_area_statistica, id_zona, id_quartiere, everything(),
-           -area_statistica, -codice_area_statistica, -quartiere)
+  popolazione_residente_as %>%
+  mutate(id_area_statistica = as.numeric(codice_area_statistica), .keep = "unused") %>%
+  select(id_area_statistica, anno, eta_grandi, eta, sesso, residenti)
 
 saveRDS(popolazione_residente_as, "data/general-porpuse/popolazione_residente_as.rds")
 
@@ -73,9 +69,9 @@ for(i in seq_along(2010:2021)){
   cli_progress_update(set = i)
   anno = (2010:2021)[i]
 
-  for(j in seq_len(length(unique(zone$nome_quartiere)))){
+  for(j in seq_len(length(unique(quartieri$nome_quartiere)))){
 
-    quartiere = unique(zone$nome_quartiere)[j]
+    quartiere = unique(quartieri$nome_quartiere)[j]
 
     res = GET(paste0("https://opendata.comune.bologna.it/api/records/1.0/search/?dataset=popolazione-residente-per-stato-civile-eta-sessocittadinanza-quartiere-e-zona-se&q=&rows=10000&sort=-anno&facet=anno&facet=cittadinanza&facet=eta_grandi&facet=eta_quinquennali&facet=quartiere&facet=zona&facet=centro_storico_zone_periferiche&facet=stato_civile&facet=sesso&refine.anno=", anno, "&refine.quartiere=", quartiere))
 
@@ -90,10 +86,9 @@ cli_progress_done(); rm(i, anno, j, quartiere, res, x)
 popolazione_residente_z =
   popolazione_residente_z %>%
   mutate(zona = zona %>% gsub("San|Santa", "S.", .) %>% gsub("S. D", "San D", .)) %>%
-  left_join(aree_statistiche %>% distinct(id_zona, id_quartiere, nome_zona),
+  left_join(zone %>% distinct(id_zona, nome_zona),
             by = c("zona" = "nome_zona")) %>%
-  select(anno, id_zona, id_quartiere, everything(),
-         -quartiere, -centro_storico_zone_periferiche, -zona)
+  select(id_zona, anno, eta_grandi, eta_quinquennali, eta_singolo, sesso, stato_civile, residenti)
 
 saveRDS(popolazione_residente_z, "data/general-porpuse/popolazione_residente_z.rds")
 

@@ -393,16 +393,16 @@ La tabella di mapping `nome_lista_conciliazione` è stata creata per agevolare q
 ```{r esempio-liste_riconciliate, echo=FALSE}
 readRDS(paste0(pl, "data/general-porpuse/nome_lista_conciliazione.rds")) %>% 
   reactable(.,
-            height = 350, pagination = FALSE,
+            height = 450, pagination = TRUE,
             fullWidth = FALSE, striped = FALSE, width = "100%", borderless = TRUE,
-            bordered = TRUE,
+            bordered = TRUE, filterable = TRUE,
             groupBy = c("key", "organo"),
             columns = list(
-              key = colDef(sticky = "left"),
-              organo = colDef(sticky = "left", aggregate = "unique"),
-              nome_lista_opendata = colDef(width = 250),
-              nome_lista_eligendo = colDef(width = 250),
-              nome_coalizione_eligendo = colDef(width = 250)
+              key = colDef(sticky = "left", filterable = TRUE),
+              organo = colDef(sticky = "left", aggregate = "unique", filterable = TRUE),
+              nome_lista_opendata = colDef(width = 250, filterable = FALSE),
+              nome_lista_eligendo = colDef(width = 250, filterable = FALSE),
+              nome_coalizione_eligendo = colDef(width = 250, filterable = FALSE)
             ),
   class = "politics-class",
   defaultExpanded = TRUE
@@ -425,19 +425,21 @@ con le liste:
 
 ```{r esempio-contrassegni, echo=FALSE}
 readRDS(paste0(pl, "data/general-porpuse/contrassegni.rds")) %>% 
+  arrange(nome_lista_eligendo) %>%
   mutate(image = paste0("https://raw.githubusercontent.com/FlavioLeccese92/bologna-politics/main/data/",
                         key, "/", image)) %>%
   reactable(.,
-            height = 350, pagination = FALSE,
-            fullWidth = FALSE, striped = FALSE, width = "100%", borderless = TRUE, bordered = TRUE,
+            height = 450, pagination = TRUE,
+            fullWidth = FALSE, striped = FALSE, width = "100%",
+            borderless = TRUE, bordered = TRUE, filterable = TRUE,
             groupBy = c("nome_lista_eligendo"),
             columns = list(
-              nome_lista_eligendo = colDef(width = 300, sticky = "left"),
+              nome_lista_eligendo = colDef(width = 300, sticky = "left", filterable = TRUE),
               image = colDef(
-                width = 100,
-                style = background_img(height = "50px", width = "50px", position = "center")),
-              key = colDef(),
-              organo = colDef()
+                width = 100, filterable = FALSE,
+                cell = embed_img(height = 50, width = 50)),
+              key = colDef(filterable = FALSE),
+              organo = colDef(filterable = FALSE)
             ),
   rowStyle = JS("{height: '65px'}"),
   class = "politics-class",
