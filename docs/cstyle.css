@@ -37,6 +37,11 @@ body {
   margin: auto!important;
   background: var(--rt-background-color);
 }
+.rt-td {
+  border-top-color: var(--rt-secondary-border-color);
+  border-left-color: var(--rt-secondary-border-color);
+  border-bottom-color: var(--rt-secondary-border-color);
+}
 .rt-table, .rt-th {
   border-color: var(--toc-border-color);
 }
@@ -68,3 +73,27 @@ body {
   width: 100%!important; height: auto!important;
 }
 #a_graph0 > a > polygon {fill: transparent;}
+
+
+g > polygon:not(:last-child) {
+  fill: var(--inline-code-background-politics);
+  stroke: none;
+}
+g > polygon:last-child {
+  stroke: var(--toc-border-color);
+}
+g > text:first-of-type {
+  font-size: 11px;
+}
+g > text:not(:first-of-type) {
+  fill: var(--text-color);
+}
+g > text {
+  font-family: var(--code-font);
+  font-size: 10px;
+  fill: #c7254e;
+}
+
+g > path {
+  stroke: var(--toc-border-color);
+}

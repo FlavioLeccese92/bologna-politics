@@ -18,7 +18,9 @@ function set_light_style_additional() {
     style.setProperty('--dark-map-filter', 'none');
     style.setProperty('--rt-background-color', 'white');
     style.setProperty('--rt-expander-color', '7px solid rgba(0,0,0,.8)');
+    style.setProperty('--rt-secondary-border-color', 'rgba(0,0,0,.05)');
     style.setProperty('--inline-code-background-politics', '#f9f2f4');
+    style.setProperty('--page-background-inverted', '#2f3136');
 }
 function set_dark_style_additional() {
 
@@ -27,7 +29,9 @@ function set_dark_style_additional() {
     style.setProperty('--dark-map-filter', 'brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.9)');
     style.setProperty('--rt-background-color', '#373c49');
     style.setProperty('--rt-expander-color', '7px solid rgba(255,255,255,.8)');
+    style.setProperty('--rt-secondary-border-color', 'rgba(255,255,255,.05)');
     style.setProperty('--inline-code-background-politics', '#373c49');
+    style.setProperty('--page-background-inverted', '#f7f7f7');
     
 }
 // Apply CSS variables defined above
@@ -125,7 +129,7 @@ levels_dm = dm(quartieri, zone, aree_statistiche, sezioni, civici_sezioni) %>%
 levels_dm %>%
   dm_set_colors(black = everything()) %>%
   dm_draw(view_type = "all", 
-          edge_attrs = 'style="dashed"',
+          edge_attrs = "style='dashed'",
           columnArrows = FALSE
           )
 ```
@@ -200,7 +204,7 @@ tibble(anno = c(2004, 2006, 2008, 2009, 2009, 2011,
   arrange(desc(data)) %>%
   reactable(.,
             height = 350, pagination = FALSE,
-            fullWidth = FALSE, striped = FALSE, width = "100%", borderless = TRUE,
+            fullWidth = FALSE, striped = FALSE, width = "100%", borderless = FALSE,
             bordered = TRUE,
             columns = list(
               anno = colDef(name = "Anno", width = 80),
@@ -394,7 +398,7 @@ La tabella di mapping `nome_lista_conciliazione` è stata creata per agevolare q
 readRDS(paste0(pl, "data/general-porpuse/nome_lista_conciliazione.rds")) %>% 
   reactable(.,
             height = 450, pagination = TRUE,
-            fullWidth = FALSE, striped = FALSE, width = "100%", borderless = TRUE,
+            fullWidth = FALSE, striped = FALSE, width = "100%", borderless = FALSE,
             bordered = TRUE, filterable = TRUE,
             groupBy = c("key", "organo"),
             columns = list(
@@ -431,7 +435,7 @@ readRDS(paste0(pl, "data/general-porpuse/contrassegni.rds")) %>%
   reactable(.,
             height = 450, pagination = TRUE,
             fullWidth = FALSE, striped = FALSE, width = "100%",
-            borderless = TRUE, bordered = TRUE, filterable = TRUE,
+            borderless = FALSE, bordered = TRUE, filterable = TRUE,
             groupBy = c("nome_lista_eligendo"),
             columns = list(
               nome_lista_eligendo = colDef(width = 300, sticky = "left", filterable = TRUE),
