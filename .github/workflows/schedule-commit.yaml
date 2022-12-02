@@ -15,8 +15,8 @@ jobs:
 # Install R packages
     - name: Install packages
       run: |
-        install.packages(c("Rduinoiot", "dplyr", "tibble","lubridate"), repos = "https://cloud.r-project.org")
-        install.packages(c("rmarkdown", "flexdashboard", "echarts4r", "htmltools"), repos = "https://cloud.r-project.org")
+        install.packages(c("flexdashboard", "dplyr", "shiny","scales"), repos = "https://cloud.r-project.org")
+        install.packages(c("leaflet", "leaflet.extras", "sf", "viridis"), repos = "https://cloud.r-project.org")
       shell: Rscript {0}
 # Run R deploy-dashboard
     - name: Run deploy-dashboard
