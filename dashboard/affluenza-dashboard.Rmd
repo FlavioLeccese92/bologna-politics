@@ -16,7 +16,7 @@ output:
       - { icon: "fa-linkedin", href: "https://www.linkedin.com/in/flavio-leccese-1645b691/", align: right}
       - { icon: "fa-github", href: "https://github.com/FlavioLeccese92/bologna-politics/", align: right}
     source_code: embed
-    self_contained: false
+    self_contained: true
 ---
 
 
