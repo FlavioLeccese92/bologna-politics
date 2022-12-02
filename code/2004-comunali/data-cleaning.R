@@ -21,10 +21,10 @@ consiglio_comunale = x[["records"]][["fields"]]
 
 consiglio_comunale_voti = consiglio_comunale %>%
   as_tibble() %>%
-  select(sezione_elettorale = sezione,
+  select(id_sezione = sezione,
          nome_lista = descrizione_lista,
          voti_validi) %>%
-  arrange(sezione_elettorale, nome_lista)
+  arrange(id_sezione, nome_lista)
 
 saveRDS(consiglio_comunale_voti, "data/2004-comunali/consiglio_comunale_voti.rds")
 
@@ -47,7 +47,7 @@ consiglio_comunale_affluenza = x[["records"]][["fields"]]
 consiglio_comunale_affluenza = consiglio_comunale_affluenza %>%
   left_join(iscritti_2008, by = "sezione") %>%
   mutate(totale_votanti = voti_validi + schede_bianche + schede_nulle + voti_contestati) %>%
-  select(sezione_elettorale = sezione, iscritti, totale_votanti, totale_voti_validi = voti_validi)
+  select(id_sezione = sezione, iscritti, totale_votanti, totale_voti_validi = voti_validi)
 
 saveRDS(consiglio_comunale_affluenza, "data/2004-comunali/consiglio_comunale_affluenza.rds")
 
@@ -60,10 +60,10 @@ sindaco = x[["records"]][["fields"]]
 
 sindaco_voti = sindaco  %>%
   as_tibble() %>%
-  select(sezione_elettorale = sezione,
+  select(id_sezione = sezione,
          nome_candidato = candidato,
          voti_validi) %>%
-  arrange(sezione_elettorale, nome_candidato)
+  arrange(id_sezione, nome_candidato)
 
 saveRDS(sindaco_voti, "data/2004-comunali/sindaco_voti.rds")
 
@@ -86,6 +86,6 @@ sindaco_affluenza = x[["records"]][["fields"]]
 sindaco_affluenza = sindaco_affluenza %>%
   left_join(iscritti_2008, by = "sezione") %>%
   mutate(totale_votanti = voti_validi + schede_bianche + schede_nulle + voti_contestati) %>%
-  select(sezione_elettorale = sezione, iscritti, totale_votanti, totale_voti_validi = voti_validi)
+  select(id_sezione = sezione, iscritti, totale_votanti, totale_voti_validi = voti_validi)
 
 saveRDS(sindaco_affluenza, "data/2004-comunali/sindaco_affluenza.rds")

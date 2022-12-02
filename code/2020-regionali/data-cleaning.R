@@ -21,12 +21,12 @@ consiglio_regionale = x[["records"]][["fields"]]
 
 consiglio_regionale_voti = consiglio_regionale %>%
   as_tibble() %>%
-  select(sezione_elettorale = ni_sez, totale_iscritti, ni_iscr_m, ni_iscr_f,
+  select(id_sezione = ni_sez, totale_iscritti, ni_iscr_m, ni_iscr_f,
          totale_voti_validi_liste,
          schede_nulle, schede_bianche, schede_contestate_e_non_attribuite, zona, quartiere,
          everything()) %>%
   pivot_longer(cols = names(.)[11:ncol(.)], names_to = "nome_lista", values_to = "voti_validi") %>%
-  select(sezione_elettorale,
+  select(id_sezione,
          nome_lista,
          voti_validi)
   # mutate(nome_lista = nome_lista %>% gsub("_[^_]*$", "", .)) %>%
@@ -37,7 +37,7 @@ saveRDS(consiglio_regionale_voti, "data/2020-regionali/consiglio_regionale_voti.
 
 consiglio_regionale_affluenza = consiglio_regionale %>%
   mutate(totale_votanti = totale_voti_validi_liste + schede_nulle + schede_bianche + schede_contestate_e_non_attribuite) %>%
-  select(sezione_elettorale = ni_sez, iscritti = totale_iscritti, totale_votanti, totale_voti_validi = totale_voti_validi_liste)
+  select(id_sezione = ni_sez, iscritti = totale_iscritti, totale_votanti, totale_voti_validi = totale_voti_validi_liste)
 
 saveRDS(consiglio_regionale_affluenza, "data/2020-regionali/consiglio_regionale_affluenza.rds")
 
@@ -51,7 +51,7 @@ presidente = x[["records"]][["fields"]]
 
 presidente_voti = presidente %>%
   as_tibble() %>%
-  select(sezione_elettorale = ni_sez, totale_iscritti, totale_votanti, percentuale_votanti,
+  select(id_sezione = ni_sez, totale_iscritti, totale_votanti, percentuale_votanti,
          nulle, bianche, contestate_e_non_attribuite, zona, quartiere,
          starts_with("di_cui_"),
          everything()) %>%
@@ -65,6 +65,6 @@ saveRDS(presidente_voti, "data/2020-regionali/presidente_voti.rds")
 #### presidente_affluenza ####
 presidente_affluenza = presidente %>%
   mutate(totale_voti_validi = totale_votanti - nulle + bianche - contestate_e_non_attribuite) %>%
-  select(sezione_elettorale = ni_sez, iscritti = totale_iscritti, totale_votanti, totale_voti_validi)
+  select(id_sezione = ni_sez, iscritti = totale_iscritti, totale_votanti, totale_voti_validi)
 
 saveRDS(presidente_affluenza, "data/2020-regionali/presidente_affluenza.rds")

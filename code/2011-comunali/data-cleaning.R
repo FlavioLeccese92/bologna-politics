@@ -24,10 +24,10 @@ consiglio_comunale_voti = consiglio_comunale %>%
   select(sezione, zona, descrizione_zona, qua, descrizione_quartiere,
          everything()) %>%
   pivot_longer(cols = names(.)[6:ncol(.)], names_to = "nome_lista", values_to = "voti_validi") %>%
-  select(sezione_elettorale = sezione,
+  select(id_sezione = sezione,
          nome_lista,
          voti_validi) %>%
-  arrange(sezione_elettorale, nome_lista)
+  arrange(id_sezione, nome_lista)
 
 saveRDS(consiglio_comunale_voti, "data/2011-comunali/consiglio_comunale_voti.rds")
 
@@ -40,7 +40,7 @@ consiglio_comunale_affluenza = x[["records"]][["fields"]]
 
 consiglio_comunale_affluenza = consiglio_comunale_affluenza %>%
   mutate(totale_votanti = voti_validi + schede_bianche + schede_nulle + voti_contestati) %>%
-  select(sezione_elettorale = sezione, iscritti = elettori, totale_votanti, totale_voti_validi = voti_validi)
+  select(id_sezione = sezione, iscritti = elettori, totale_votanti, totale_voti_validi = voti_validi)
 
 saveRDS(consiglio_comunale_affluenza, "data/2011-comunali/consiglio_comunale_affluenza.rds")
 
@@ -56,9 +56,9 @@ sindaco_voti = sindaco  %>%
   select(sezione, zona, descrizione_zona, quartiere, descrizione_quartiere, c,
          everything()) %>%
   pivot_longer(cols = names(.)[7:ncol(.)], names_to = "nome_candidato", values_to = "voti_validi") %>%
-  select(sezione_elettorale = sezione,
+  select(id_sezione = sezione,
          nome_candidato,
          voti_validi) %>%
-  arrange(sezione_elettorale, nome_candidato)
+  arrange(id_sezione, nome_candidato)
 
 saveRDS(sindaco_voti, "data/2011-comunali/sindaco_voti.rds")

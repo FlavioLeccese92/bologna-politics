@@ -8,8 +8,6 @@ library(jsonlite)
 library(dplyr)
 library(tidyverse)
 
-seggi = readRDS("data/general-porpuse/seggi.rds")
-
 ###------------------###
 ####    RISULTATI   ####
 ###------------------###
@@ -28,19 +26,17 @@ consiglio_comunale_voti = consiglio_comunale %>%
          totale_schede_nulle, totale_schede_bianche, totale_schede_contestate, differenza,
          everything()) %>%
   pivot_longer(cols = names(.)[13:ncol(.)], names_to = "nome_lista", values_to = "voti_validi") %>%
-  select(sezione_elettorale = sezione,
+  select(id_sezione = sezione,
          nome_lista,
          voti_validi) %>%
-  arrange(sezione_elettorale, nome_lista) %>%
-  left_join(seggi %>% distinct(sezione_elettorale, id_zona, id_quartiere), by = "sezione_elettorale")
+  arrange(id_sezione, nome_lista)
 
 saveRDS(consiglio_comunale_voti, "data/2021-comunali/consiglio_comunale_voti.rds")
 
 #### consiglio_comunale_affluenza ####
 
 consiglio_comunale_affluenza = consiglio_comunale %>%
-  select(sezione_elettorale = sezione, iscritti, totale_votanti, totale_voti_validi) %>%
-  left_join(seggi %>% distinct(sezione_elettorale, id_zona, id_quartiere), by = "sezione_elettorale")
+  select(id_sezione = sezione, iscritti, totale_votanti, totale_voti_validi)
 
 saveRDS(consiglio_comunale_affluenza, "data/2021-comunali/consiglio_comunale_affluenza.rds")
 
@@ -58,21 +54,18 @@ sindaco_voti = sindaco  %>%
          nulle, bianche, contestate = contest, differenza, solo_sindaco,
          everything()) %>%
   pivot_longer(cols = names(.)[12:ncol(.)], names_to = "nome_candidato", values_to = "voti_validi") %>%
-  select(sezione_elettorale = sezione,
+  select(id_sezione = sezione,
          nome_candidato,
          voti_validi) %>%
-  arrange(sezione_elettorale, nome_candidato) %>%
-  left_join(seggi %>% distinct(sezione_elettorale, id_zona, id_quartiere), by = "sezione_elettorale")
+  arrange(id_sezione, nome_candidato)
 
 saveRDS(sindaco_voti, "data/2021-comunali/sindaco_voti.rds")
 
 #### sindaco_affluenza ####
 
 sindaco_affluenza = sindaco %>%
-  select(sezione_elettorale = sezione, totale_votanti, totale_voti_validi) %>%
-  left_join(seggi %>% distinct(sezione_elettorale, id_zona, id_quartiere), by = "sezione_elettorale") %>%
-  left_join(consiglio_comunale_affluenza %>% distinct(sezione_elettorale, iscritti), by = "sezione_elettorale") %>%
-  relocate(iscritti, .after = "sezione_elettorale")
+  select(id_sezione = sezione, totale_votanti, totale_voti_validi) %>%
+  left_join(consiglio_comunale_affluenza %>% distinct(id_sezione, iscritti), by = "id_sezione")
 
 saveRDS(sindaco_affluenza, "data/2021-comunali/sindaco_affluenza.rds")
 
@@ -87,11 +80,10 @@ preferenze_CC = preferenze_CC %>%
   as_tibble() %>%
   select(sezione, iscritti, zona, quartiere, nome_lista, everything()) %>%
   pivot_longer(cols = names(.)[6:ncol(.)], names_to = "candidato", values_to = "voti_validi") %>%
-  select(sezione_elettorale = sezione,
+  select(id_sezione = sezione,
          nome_candidato = candidato,
          voti_validi) %>%
-  arrange(sezione_elettorale, nome_candidato) %>%
-  left_join(seggi %>% distinct(sezione_elettorale, id_zona, id_quartiere), by = "sezione_elettorale")
+  arrange(id_sezione, nome_candidato)
 
 rm(x); rm(res)
 
