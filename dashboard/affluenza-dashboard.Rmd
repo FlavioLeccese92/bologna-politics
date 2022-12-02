@@ -37,7 +37,7 @@ if(basename(getwd()) == "dashboard"){pl = "../"}else{pl = ""}
 ```{js, echo=FALSE}
 $(document).ready(function() {
   $('#dashboard-container').on('flexdashboard:layoutcomplete', function() {
-    $('.navbar-right').prepend('<div class="dark-theme-toggler"><div class="toggle "><div class="toggle-track"><div class="toggle-track-check"><img src="www/moon.png" role="presentation" style="pointer-events: none;" width="16" height="16"></div> <div class="toggle-track-x"><img src="www/sun.png" role="presentation" style="pointer-events: none;" width="16" height="16"></div></div> <div class="toggle-thumb"></div></div> <input type="checkbox" aria-label="Switch between Dark and Default theme" class="toggler-screen-reader-only"></div>');
+    $('.navbar-right').prepend('<div class="dark-theme-toggler"><div class="toggle "><div class="toggle-track"><div class="toggle-track-check"><img src="https://raw.githubusercontent.com/FlavioLeccese92/bologna-politics/main/dashboard/www/moon.png" role="presentation" style="pointer-events: none;" width="16" height="16"></div> <div class="toggle-track-x"><img src="https://raw.githubusercontent.com/FlavioLeccese92/bologna-politics/main/dashboard/www/sun.png" role="presentation" style="pointer-events: none;" width="16" height="16"></div></div> <div class="toggle-thumb"></div></div> <input type="checkbox" aria-label="Switch between Dark and Default theme" class="toggler-screen-reader-only"></div>');
   });
 })
 window.addEventListener("load", (event) => {
