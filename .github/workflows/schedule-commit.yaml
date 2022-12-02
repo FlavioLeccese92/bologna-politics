@@ -1,0 +1,34 @@
+name: rduinoiot-jobs
+on:
+  push:
+    branches:
+    - main
+jobs:
+  refresh-data:
+# The type of runner that the job will run on
+    runs-on: macos-latest
+# Load repo and install R
+    steps:
+    - uses: actions/checkout@master
+    - uses: r-lib/actions/setup-r@master
+    - uses: r-lib/actions/setup-pandoc@v2
+# Install R packages
+    - name: Install packages
+      run: |
+        install.packages(c("Rduinoiot", "dplyr", "tibble","lubridate"), repos = "https://cloud.r-project.org")
+        install.packages(c("rmarkdown", "flexdashboard", "echarts4r", "htmltools"), repos = "https://cloud.r-project.org")
+      shell: Rscript {0}
+# Run R deploy-dashboard
+    - name: Run deploy-dashboard
+      run: Rscript jobs/deploy-dashboard.R
+# Add new files in data folder, commit along with other modified files, push
+    - name: Commit files
+      run: |
+        git config --local user.name actions-user
+        git config --local user.email "actions@github.com"
+        git add --force data/*
+        git commit -am "GH ACTION Headlines $(date)"
+        git push origin main
+      env:
+        REPO_KEY: ${{secrets.GITHUB_TOKEN}}
+        username: github-actions

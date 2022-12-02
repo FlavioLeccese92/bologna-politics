@@ -3,10 +3,10 @@ output_dir: ../docs
 navbar:
   title: "Bologna politics"
   left:
-  - text: Home
-    href: index.html
   - text: Note metodologiche
     href: note-metodologiche.html
+  - text: Affluenza
+    href: affluenza-dashboard.html
   - text: License
     href: license.html
 output:
