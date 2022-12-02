@@ -85,9 +85,33 @@ quartieri = quartieri %>%
 saveRDS(quartieri, "data/general-porpuse/quartieri.rds")
 
 #### archi_stradali ####
-# res = GET("https://opendata.comune.bologna.it/api/records/1.0/search/?dataset=rifter_arcstra_li&q=&rows=10000&facet=nomequart&facet=data_istit")
-# x = jsonlite::fromJSON(httr::content(res, 'text', encoding = "UTF-8"))
-# archi_stradali = x[["records"]][["fields"]]
+res = GET("https://opendata.comune.bologna.it/api/records/1.0/search/?dataset=rifter_arcstra_li&q=&rows=10000&facet=nomequart&facet=data_istit")
+x = jsonlite::fromJSON(httr::content(res, 'text', encoding = "UTF-8"))
+archi_stradali = x[["records"]][["fields"]]
+
+archi_stradali = archi_stradali %>%
+  as_tibble() %>%
+  unnest_wider(geo_shape) %>%
+  mutate(id_arco = codarco) %>%
+  select(id_arco, coordinates) %>%
+  arrange(id_arco)
+
+saveRDS(archi_stradali, "data/general-porpuse/archi_stradali.rds")
+
+archi_stradali_sf =
+  archi_stradali %>%
+  group_by(id_arco) %>%
+  unnest(coordinates) %>%
+  mutate(longitude = coordinates %>% .[[1]] %>% .[,1] %>% list(),
+         latitude = coordinates %>% .[[1]] %>% .[,2] %>% list()) %>%
+  unnest(c(latitude, longitude)) %>%
+  select(id_arco, longitude, latitude) %>%
+  st_as_sf(., coords = c("longitude", "latitude")) %>%
+  group_by(id_arco) %>%
+  summarise(geometry = st_combine(geometry), .groups = "drop") %>%
+  st_cast("MULTILINESTRING")
+
+saveRDS(archi_stradali_sf, "data/polygons/archi_stradali_polygon.rds")
 
 ### zone_coordinates ###
 zone_coordinates = zone %>%

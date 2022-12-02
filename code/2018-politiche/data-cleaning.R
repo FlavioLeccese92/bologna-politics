@@ -28,17 +28,17 @@ senato_voti = senato %>%
          totale_schede_nulle, totale_schede_bianche, totale_schede_contestate, differenza,
          everything()) %>%
   pivot_longer(cols = names(.)[11:ncol(.)], names_to = "nome_lista", values_to = "voti_validi") %>%
-  select(sezione_elettorale,
+  select(id_sezione = sezione_elettorale,
          nome_lista,
          voti_validi) %>%
   mutate(nome_lista = nome_lista %>% gsub("_[^_]*$", "", .)) %>%
-  arrange(sezione_elettorale, nome_lista)
+  arrange(id_sezione, nome_lista)
 
 saveRDS(senato_voti, "data/2018-politiche/senato_voti.rds")
 
 #### senato_affluenza ####
 senato_affluenza = senato %>%
-  select(sezione_elettorale, iscritti = iscritti_al_voto, totale_votanti, totale_voti_validi)
+  select(id_sezione = sezione_elettorale, iscritti = iscritti_al_voto, totale_votanti, totale_voti_validi)
 
 saveRDS(senato_affluenza, "data/2018-politiche/senato_affluenza.rds")
 
@@ -56,11 +56,11 @@ camera_c6_voti = camera_c6 %>%
          totale_schede_nulle, totale_schede_bianche, totale_schede_contestate, differenza,
          everything()) %>%
   pivot_longer(cols = names(.)[11:ncol(.)], names_to = "nome_lista", values_to = "voti_validi") %>%
-  select(sezione_elettorale,
+  select(id_sezione = sezione_elettorale,
          nome_lista,
          voti_validi) %>%
   mutate(nome_lista = nome_lista %>% gsub("_[^_]*$", "", .)) %>%
-  arrange(sezione_elettorale, nome_lista)
+  arrange(id_sezione, nome_lista)
 
 
 saveRDS(camera_c6_voti, "data/2018-politiche/camera06_voti.rds")
@@ -77,17 +77,17 @@ camera_c7_voti = camera_c7 %>%
          totale_schede_nulle, totale_schede_bianche, totale_schede_contestate, differenza,
          everything()) %>%
   pivot_longer(cols = names(.)[11:ncol(.)], names_to = "nome_lista", values_to = "voti_validi") %>%
-  select(sezione_elettorale,
+  select(id_sezione = sezione_elettorale,
          nome_lista,
          voti_validi) %>%
   mutate(nome_lista = nome_lista %>% gsub("_[^_]*$", "", .)) %>%
-  arrange(sezione_elettorale, nome_lista)
+  arrange(id_sezione, nome_lista)
 
 saveRDS(camera_c7_voti, "data/2018-politiche/camera07_voti.rds")
 
 camera_voti = bind_rows(camera_c6_voti,
                         camera_c7_voti) %>%
-  group_by(sezione_elettorale, nome_lista) %>%
+  group_by(id_sezione, nome_lista) %>%
   summarise(voti_validi = sum(voti_validi), .groups = "drop")
 
 saveRDS(camera_voti, "data/2018-politiche/camera_voti.rds")
@@ -96,6 +96,6 @@ saveRDS(camera_voti, "data/2018-politiche/camera_voti.rds")
 
 camera_affluenza = bind_rows(camera_c6,
                              camera_c7) %>%
-  select(sezione_elettorale, iscritti, totale_votanti, totale_voti_validi)
+  select(id_sezione = sezione_elettorale, iscritti, totale_votanti, totale_voti_validi)
 
 saveRDS(camera_affluenza, "data/2018-politiche/camera_affluenza.rds")
