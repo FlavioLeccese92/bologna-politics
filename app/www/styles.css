@@ -212,7 +212,9 @@ p {
 @media only screen and (min-width: 23.75em) {
   .dashboard-filters {
     grid-template-columns: repeat(3, 1fr);
-    grid-template-columns: 3fr 3fr 3fr;
+    /* edited
+    grid-template-columns: 3fr 3fr 3fr; */
+    grid-template-columns: 3fr 2.5fr 3.5fr;
   }
 }
 @media only screen and (min-width: 48em) {
@@ -450,7 +452,9 @@ p {
   transform: scaleX(0);
 }
 .panel-metric .shiny-html-output {
-  align-items: end;
+  /* edited
+  align-items: end; */
+  align-items: center;
   display: grid;
   /* edited
   gap: 0.625rem;
@@ -459,7 +463,9 @@ p {
   column-gap: 0rem;
   grid-template-areas: "metric  icon" "detail percent";
   grid-template-columns: 1fr auto;
-  grid-template-rows: 1fr auto;
+  /* edited
+  grid-template-rows: 1fr auto; */
+  grid-template-rows: 35px auto;
   /* edited
   height: 6.25rem; */
   height: 7rem;

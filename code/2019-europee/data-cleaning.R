@@ -27,18 +27,18 @@ parlamento_voti = parlamento %>%
          schede_bianche_757, schede_nulle_2416, contestate_non_assegnate_15, zona, quartiere,
          everything()) %>%
   pivot_longer(cols = names(.)[16:ncol(.)], names_to = "nome_lista", values_to = "voti_validi") %>%
-  select(sezione_elettorale,
+  select(id_sezione = sezione_elettorale,
          nome_lista,
          voti_validi) %>%
   mutate(nome_lista = nome_lista %>% gsub("_[^_]*$", "", .)) %>%
-  arrange(sezione_elettorale, nome_lista)
+  arrange(id_sezione, nome_lista)
 
 saveRDS(parlamento_voti, "data/2019-europee/parlamento_voti.rds")
 
 #### parlamento_affluenza ####
 
 parlamento_affluenza = parlamento %>%
-  select(sezione_elettorale, iscritti, totale_votanti, totale_voti_validi)
+  select(id_sezione = sezione_elettorale, iscritti, totale_votanti, totale_voti_validi)
 
 
 saveRDS(parlamento_affluenza, "data/2019-europee/parlamento_affluenza.rds")

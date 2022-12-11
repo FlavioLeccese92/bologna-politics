@@ -177,6 +177,39 @@ for(i in seq_len(nrow(tree_table))){
     bind_rows(contrassegni, .)
 }
 
+### Needed to merge camera06 and camera07 ###
+
+tree_table = tree_table %>%
+  mutate(temp_html = ifelse(organo == "camera06", gsub("camera06", "camera", temp_html), temp_html),
+         temp_files = ifelse(organo == "camera06", gsub("camera06", "camera", temp_files), temp_files),
+         temp_rds = ifelse(organo == "camera06", gsub("camera06", "camera", temp_rds), temp_rds),
+         organo = ifelse(organo == "camera06", gsub("camera06", "camera", organo), organo)) %>%
+  filter(organo != "camera07")
+
+tree_table = tree_table %>%
+  mutate(temp_affluenza_rds = gsub("voti", "affluenza", temp_rds))
+
+contrassegni = contrassegni %>%
+  mutate(image = ifelse(organo == "camera06", gsub("camera06", "camera", image), image),
+         organo = ifelse(organo == "camera06", gsub("camera06", "camera", organo), organo)) %>%
+  filter(organo != "camera07")
+
+nome_lista_conciliazione = nome_lista_conciliazione %>%
+  mutate(organo = ifelse(organo %in% c("camera06", "camera07"), "camera", organo)) %>%
+  group_by(key, organo, nome_lista_opendata, nome_lista_eligendo) %>%
+  summarise(nome_coalizione_eligendo = paste0(nome_coalizione_eligendo, collapse = " / "), .groups = "drop")
+
+eligendo_risultati = eligendo_risultati %>%
+  mutate(organo = ifelse(organo %in% c("camera06", "camera07"), "camera", organo)) %>%
+  group_by(key, organo, nome_lista_eligendo) %>%
+  summarise(nome_coalizione_eligendo = paste0(nome_coalizione_eligendo, collapse = " / "),
+            voti_validi = sum(voti_validi), .groups = "drop")
+
+open_data_risultati = open_data_risultati %>%
+  mutate(organo = ifelse(organo %in% c("camera06", "camera07"), "camera", organo)) %>%
+  group_by(key, organo, nome_lista) %>%
+  summarise(voti_validi = sum(voti_validi), .groups = "drop")
+
 saveRDS(tree_table, "data/general-porpuse/tree_table.rds")
 saveRDS(contrassegni, "data/general-porpuse/contrassegni.rds")
 saveRDS(nome_lista_conciliazione, "data/general-porpuse/nome_lista_conciliazione.rds")
@@ -235,3 +268,4 @@ saveRDS(open_data_risultati, "data/general-porpuse/open_data_risultati.rds")
 #                                       grepl("Msfiamma", nome_lista_cleaned) ~ "Fiamma",
 #                                       TRUE ~ nome_lista_cleaned)) %>%
 # distinct(nome_lista, nome_lista_cleaned)
+
