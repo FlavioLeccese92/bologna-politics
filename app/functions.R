@@ -2,8 +2,8 @@ panel_ui = function(metric_name, metric,
                     detail1_name, detail1,
                     detail2_name, detail2,
                     delta_label, delta, delta_class,
-                    img_src = NULL){
-print(img_src)
+                    img_src = ""){
+
   require(dplyr)
   require(scales)
   require(shiny)
@@ -13,18 +13,35 @@ print(img_src)
   metric_style = "font-size: 1.3rem!important; overflow: hidden;
   display: -webkit-box; -webkit-line-clamp: 2;
   -webkit-box-orient: vertical; height: max-content;"
-  icon = tags$div(class = "icon", style = "width: 100%;",
-                  tags$image(
-                    style = "width: auto; height: 100%;",
-                    src=img_src))
+    if(length(img_src)==1){
+    icon = tags$div(class = "icon", style = "width: 100%;",
+                    tags$image(
+                      style = "width: auto; height: 140%;",
+                      src=img_src))
+    }else{
+      img_src_list = list()
+      for(i in 1:length(img_src)){
+        img_src_list[[i]] = tags$image(style = "width: 20px; height: auto;", src=img_src[i])
+      }
+      icon = tags$div(class = "icon", img_src_list,
+      style = "width: 100%; max-width: 95px; align-content: center;
+      heigth: 100%; display: flex; flex-wrap: wrap;")
+    }
   }else{
     metric = metric %>% label_percent(accuracy  = 0.01, suffix = " %")(.)
     icon = tags$svg(class = "icon", viewBox="0 0 50 50",
                     style = "width: 100%; height: 100%; fill: rgb(179, 184, 186)",
                     tags$use(href="www/affluenza.svg#affluenza"))
   }
-  detail1 = detail1 %>% label_number(big.mark = ",", decimal.mark = ".")(.)
-  detail2 = detail2 %>% label_number(big.mark = ",", decimal.mark = ".")(.)
+
+  if(detail1>1){
+    detail1 = detail1 %>% label_number(big.mark = ",", decimal.mark = ".")(.)}else{
+      detail1 = detail1 %>% label_percent(accuracy  = 0.01, suffix = " %")(.)
+    }
+  if(detail2>1){
+    detail2 = detail2 %>% label_number(big.mark = ",", decimal.mark = ".")(.)}else{
+      detail2 = detail2 %>% label_percent(accuracy  = 0.01, suffix = " %")(.)
+    }
 
   div(class = "panel panel-metric",
       div(style = "min-height: 0px; border-radius: 6px 6px 0px 0px;
@@ -42,3 +59,4 @@ print(img_src)
       )
   )
 }
+

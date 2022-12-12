@@ -357,6 +357,8 @@ p {
 .panel-metric {
   position: relative;
   margin-bottom: 0.625rem;
+  /* added */
+  border: 0px;
 }
 .panel-metric label {
   position: absolute;
@@ -469,7 +471,9 @@ p {
   /* edited
   height: 6.25rem; */
   height: 7rem;
-  padding: 12px;
+  /* edited
+  padding: 12px; */
+  padding: 8px;
 }
 .panel-metric .icon {
   align-items: center;

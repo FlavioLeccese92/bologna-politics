@@ -24,7 +24,7 @@ senato_voti = senato %>%
   select(id_sezione = sezione,nome_lista, voti_validi) %>%
   arrange(id_sezione, nome_lista)
 
-saveRDS(senato, "data/2006-politiche/senato_voti.rds")
+saveRDS(senato_voti, "data/2006-politiche/senato_voti.rds")
 
 #### senato_affluenza ####
 #### Mancano elettori per sezione nel 2006 -> usare dati 2008 e riproporzionare con numero iscritti 2006 = 289736 ####
