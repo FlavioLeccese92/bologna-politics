@@ -10,23 +10,23 @@ library(leaflet)
 library(leaflet.extras)
 library(viridis)
 
-addResourcePath("www", paste0(getwd(), "/www"))
+addResourcePath("app_www", paste0(getwd(), "/app_www"))
 
 github_prefix = "https://raw.githubusercontent.com/FlavioLeccese92/bologna-politics/main/"
 
 ### path tables ###
-tree_table = readRDS("../data/general-porpuse/tree_table.rds")
-nome_lista_conciliazione = readRDS("../data/general-porpuse/nome_lista_conciliazione.rds")
-contrassegni = readRDS("../data/general-porpuse/contrassegni.rds")
+tree_table = readRDS("data/general-porpuse/tree_table.rds")
+nome_lista_conciliazione = readRDS("data/general-porpuse/nome_lista_conciliazione.rds")
+contrassegni = readRDS("data/general-porpuse/contrassegni.rds")
 
 ### geographical hierarchies ###
-quartieri = readRDS("../data/general-porpuse/quartieri.rds")
-zone = readRDS("../data/general-porpuse/zone.rds")
-aree_statistiche = readRDS("../data/general-porpuse/aree_statistiche.rds")
-sezioni = readRDS("../data/general-porpuse/sezioni.rds")
+quartieri = readRDS("data/general-porpuse/quartieri.rds")
+zone = readRDS("data/general-porpuse/zone.rds")
+aree_statistiche = readRDS("data/general-porpuse/aree_statistiche.rds")
+sezioni = readRDS("data/general-porpuse/sezioni.rds")
 
 ### polygons ###
-sezioni_polygons = readRDS("../data/polygons/sezioni_polygons.rds")
+sezioni_polygons = readRDS("data/polygons/sezioni_polygons.rds")
 
 nome_lista_conciliazione = nome_lista_conciliazione %>%
   mutate(id_lista = case_when(nome_lista_eligendo %in%
@@ -106,10 +106,10 @@ nome_lista_conciliazione = nome_lista_conciliazione %>%
                                    TRUE ~ id_lista
   ))
 
-source("functions.R")
+source("app_functions/functions.R")
 
 ui = fluidPage(
-    includeCSS("www/styles.css"),
+    includeCSS("app_www/styles.css"),
     tags$link(href="https://fonts.googleapis.com/css2?family=Maven+Pro:wght@400;500;700&amp;display=swap", rel="stylesheet"),
     tags$main(class = "dashboard",
               tags$header(class = "dashboard-header",
@@ -169,10 +169,10 @@ server = function(input, output, session) {
       filter(votazione == input$gen_input_votazione,
              anno == input$gen_input_anno,
              organo == input$gen_input_organo) %>%
-      mutate(temp_html = paste0(".", temp_html),
-             temp_files = paste0(".", temp_files),
-             temp_rds = paste0(".", temp_rds),
-             temp_affluenza_rds = paste0(".", temp_affluenza_rds)
+      mutate(temp_html = gsub("\\./", "", temp_html),
+             temp_files = gsub("\\./", "", temp_files),
+             temp_rds = gsub("\\./", "", temp_rds),
+             temp_affluenza_rds = gsub("\\./", "", temp_affluenza_rds)
              ) %>% {if (nrow(.) == 0) NULL else .}
 
     r$nome_lista_conciliazione =
@@ -189,10 +189,10 @@ server = function(input, output, session) {
              organo == input$gen_input_organo) %>%
       arrange(anno) %>%
       filter(lead(anno == input$gen_input_anno)) %>%
-      mutate(temp_html = paste0(".", temp_html),
-             temp_files = paste0(".", temp_files),
-             temp_rds = paste0(".", temp_rds),
-             temp_affluenza_rds = paste0(".", temp_affluenza_rds)
+      mutate(temp_html = gsub("\\./", "", temp_html),
+             temp_files = gsub("\\./", "", temp_files),
+             temp_rds = gsub("\\./", "", temp_rds),
+             temp_affluenza_rds = gsub("\\./", "", temp_affluenza_rds)
       ) %>% {if (nrow(.) == 0) NULL else .}
 
     r$nome_lista_conciliazione_prev =
