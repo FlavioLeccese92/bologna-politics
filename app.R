@@ -118,16 +118,16 @@ ui = fluidPage(
                                          class="logo logo-shiny", target="_blank",
                                          rel="nofollow noreferrer", `aria-label`="RStudio Shiny Website",
                                          tags$svg(class="logo-svg", viewBox="0 0 100 68",
-                                                  tags$use(href="www/icons-sprite-map.svg#shiny-logo"))),
+                                                  tags$use(href="app_www/icons-sprite-map.svg#shiny-logo"))),
                                   tags$span(class="dashboard-title", "Bologna Politics"))#,
                           ),
               tags$section(class = "dashboard-panels",
                            tags$div(class = "dashboard-filters-vertical",
                                              selectizeInput("gen_input_votazione", "Elezioni",
-                                                            choices = list("<div> <img style = 'padding-right: 5px; padding-bottom: 2px;' src='www/bandiera-comune-bologna.png' width=30px>Comunali</img></div>" = "comunali",
-                                                                           "<div> <img style = 'padding-right: 5px; padding-bottom: 2px;' src='www/bandiera-emilia-romagna.png' width=30px>Regionali</img></div>" = "regionali",
-                                                                           "<div> <img style = 'padding-right: 5px; padding-bottom: 2px;' src='www/bandiera-italia.png'         width=30px>Politiche</img></div>" = "politiche",
-                                                                           "<div> <img style = 'padding-right: 5px; padding-bottom: 2px;' src='www/bandiera-unione-europea.png' width=30px>Europee</img></div>" = "europee"
+                                                            choices = list("<div> <img style = 'padding-right: 5px; padding-bottom: 2px;' src='app_www/bandiera-comune-bologna.png' width=30px>Comunali</img></div>" = "comunali",
+                                                                           "<div> <img style = 'padding-right: 5px; padding-bottom: 2px;' src='app_www/bandiera-emilia-romagna.png' width=30px>Regionali</img></div>" = "regionali",
+                                                                           "<div> <img style = 'padding-right: 5px; padding-bottom: 2px;' src='app_www/bandiera-italia.png'         width=30px>Politiche</img></div>" = "politiche",
+                                                                           "<div> <img style = 'padding-right: 5px; padding-bottom: 2px;' src='app_www/bandiera-unione-europea.png' width=30px>Europee</img></div>" = "europee"
                                                             ),
                                                             selected = "politiche",
                                                             options = list(
@@ -234,7 +234,7 @@ server = function(input, output, session) {
              "Totale voti", detail1,
              "Aventi diritto", detail2,
              delta, delta_label, delta_class,
-             vec_src = "www/affluenza.svg#affluenza")
+             vec_src = "app_www/affluenza.svg#affluenza")
 
     })
 
