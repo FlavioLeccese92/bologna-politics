@@ -91,7 +91,7 @@ p {
 }
 
 .positive-change {
-  color: #0099F9;
+  color: #27b376;
 }
 .negative-change {
   color: #FF364A;
@@ -336,6 +336,8 @@ p {
   gap: 1.25rem;
   grid-template-columns: 1fr;
   width: 100%;
+  /* added */
+  margin-bottom: 1.25rem;
 }
 @media only screen and (min-width: 36em) {
   .dashboard-panels {
@@ -696,4 +698,150 @@ p {
 .chart-map .leaflet-bar a:hover {
   background-color: #B3B8BA;
   color: #525252;
+}
+
+/* dashboard-filters-vertical */
+.dashboard-filters-vertical {
+  display: grid;
+  gap: 0rem;
+  grid-template-rows: repeat(3, 1fr);
+  grid-template-columns: auto;
+  width: 100%;
+  padding: 5px;
+}
+.dashboard-filters-vertical .shiny-input-container {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 3fr;
+  gap: 0.5rem;
+  align-items: center;
+}
+.dashboard-filters-vertical .form-group {
+  margin-bottom: 0px;
+}
+.dashboard-filters-vertical .form-group label {
+    text-align: right;
+}
+.dashboard-filters-vertical .form-group div .selectize-control {
+  margin-bottom: 0px;
+}
+
+.dashboard-filters-vertical .form-group .selectize-control.single .selectize-input .item {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.dashboard-filters-vertical .form-group .selectize-control.single .selectize-input::after {
+  background-color: #525252;
+  border: none;
+  content: "";
+  display: flex;
+  height: 10px;
+  margin: 0;
+  mask-image: url(www/arrow.svg);
+  mask-size: 100%;
+  pointer-events: none;
+  position: absolute;
+  top: 40%;
+  transition: transform 0.2s;
+  width: 10px;
+  -webkit-mask-image: url(www/arrow.svg);
+  -webkit-mask-size: 100%;
+}
+.dashboard-filters-vertical .form-group .selectize-control.single .selectize-input > input {
+  display: none !important;
+}
+.dashboard-filters-vertical .form-group .selectize-control.single .selectize-input.input-active {
+  cursor: pointer;
+  box-shadow: none;
+}
+.dashboard-filters-vertical .form-group .selectize-control.single .selectize-input.input-active::after {
+  transform: rotate(180deg);
+}
+.dashboard-filters-vertical .form-group .selectize-control.single .selectize-dropdown {
+  animation: popUp 0.2s cubic-bezier(0.37, 1.44, 0.82, 1);
+  box-shadow: 0 2px 8px -2px rgba(82, 82, 82, 0.4);
+  position: absolute;
+  transform-origin: center top;
+  z-index: 9999;
+}
+.dashboard-filters-vertical .form-group .selectize-control.single .selectize-input:not(.input-active):hover {
+  border: 1px solid #0099F9;
+}
+.dashboard-filters-vertical .form-group .selectize-control.single .selectize-input:not(.input-active):hover > .item {
+  color: #0099F9;
+}
+.dashboard-filters-vertical .form-group .selectize-control.single .selectize-input:not(.input-active):hover::after {
+  background-color: #0099F9;
+}
+.dashboard-filters-vertical .form-group .selectize-control.single .selectize-input.input-active {
+  color: white;
+  border-color: #15354A;
+  background-color: #15354A;
+}
+.dashboard-filters-vertical .form-group .selectize-control.single .selectize-input.input-active > .item {
+  color: #fff;
+}
+.dashboard-filters-vertical .form-group .selectize-control.single .selectize-input.input-active::after {
+  background-color: #fff;
+}
+
+/* added dashboard-panels-2col */
+.dashboard-panels-2col {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: 1fr;
+  grid-template-rows: 400px 400px;
+  width: 100%;
+}
+@media only screen and (min-width: 36em) {
+  .dashboard-panels-2col {
+    grid-template-columns: 1fr;
+    grid-template-rows: 500px 500px;
+  }
+}
+@media only screen and (min-width: 67.5em) {
+  .dashboard-panels-2col {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: 600px;
+  }
+}
+/* added reactable */
+.rt-tr-highlight, .rt-tr-highlight-sticky {
+  cursor: pointer;
+}
+.rt-tr-selected {
+  pointer-events: none;
+}
+.rt-sticky {
+  border-radius: 6px;
+}
+.reactable {
+  width: 100%!important;
+  visibility: inherit;
+  overflow-x: overlay;
+}
+.rt-th {
+    border-bottom: 2px solid #15354a;
+    border-radius: 0px;
+}
+/* added leaflet
+.leaflet-container{
+    width: 100%!important;
+    height: 0!important;
+    padding-bottom: 100%!important;
+}
+@media only screen and (min-width: 36em) {
+  .leaflet-container{
+    width: 100%!important;
+    height: 0!important;
+    padding-bottom: 100%!important;
+  }
+}
+@media only screen and (min-width: 67.5em) {
+  .leaflet-container{
+    height: 100%!important;
+  }
+} */
+.leaflet-container{
+    height: auto!important;
 }

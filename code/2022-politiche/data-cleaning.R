@@ -22,10 +22,9 @@ senato_plurinominale_voti = x[["records"]][["fields"]]
 senato_voti = senato_plurinominale_voti %>%
   as_tibble() %>%
   select(id_sezione = sezione,
-         id_lista = numero_liste,
          nome_lista,
          voti_validi) %>%
-  arrange(id_sezione, id_lista)
+  arrange(id_sezione)
 
 saveRDS(senato_voti, "data/2022-politiche/senato_voti.rds")
 
@@ -67,10 +66,9 @@ camera_plurinominale_voti = x[["records"]][["fields"]]
 camera_voti = camera_plurinominale_voti %>%
   as_tibble() %>%
   select(id_sezione = sezione,
-         id_lista = numero_liste,
          nome_lista,
          voti_validi) %>%
-  arrange(id_sezione, id_lista)
+  arrange(id_sezione)
 
 saveRDS(camera_voti, "data/2022-politiche/camera_voti.rds")
 

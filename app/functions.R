@@ -1,8 +1,8 @@
-panel_ui = function(metric_name, metric,
+panel_ui = function(metric_name, metric, metric_type = "perc",
                     detail1_name, detail1,
                     detail2_name, detail2,
                     delta_label, delta, delta_class,
-                    img_src = ""){
+                    img_src = "", vec_src = NULL){
 
   require(dplyr)
   require(scales)
@@ -28,10 +28,11 @@ panel_ui = function(metric_name, metric,
       heigth: 100%; display: flex; flex-wrap: wrap;")
     }
   }else{
-    metric = metric %>% label_percent(accuracy  = 0.01, suffix = " %")(.)
-    icon = tags$svg(class = "icon", viewBox="0 0 50 50",
-                    style = "width: 100%; height: 100%; fill: rgb(179, 184, 186)",
-                    tags$use(href="www/affluenza.svg#affluenza"))
+    if(metric_type == "perc"){metric = metric %>% label_percent(accuracy  = 0.01, suffix = " %")(.)}
+    if(metric_type == "num"){metric = metric %>% label_number(big.mark = ",", decimal.mark = ".")(.)}
+    icon = tags$svg(class = "icon", viewBox="0 0 35 35",
+                    style = "width: 100%; height: 100%; fill: #15354a",
+                    tags$use(href=vec_src))
   }
 
   if(detail1>1){
