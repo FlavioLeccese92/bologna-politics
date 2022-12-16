@@ -9,8 +9,11 @@ library(sf)
 library(leaflet)
 library(leaflet.extras)
 library(viridis)
+library(shinycustomloader)
+library(knitr)
 
 addResourcePath("app_www", paste0(getwd(), "/app_www"))
+addResourcePath("data", paste0(getwd(), "/data"))
 
 github_prefix = "https://raw.githubusercontent.com/FlavioLeccese92/bologna-politics/main/"
 
@@ -27,6 +30,13 @@ sezioni = readRDS("data/general-porpuse/sezioni.rds")
 
 ### polygons ###
 sezioni_polygons = readRDS("data/polygons/sezioni_polygons.rds")
+
+### palette ###
+red = "#ef5350"
+green = "#27b376"
+yellow = "#ffca28"
+blue = "#0099F9"
+darkblue = "#15354a"
 
 nome_lista_conciliazione = nome_lista_conciliazione %>%
   mutate(id_lista = case_when(nome_lista_eligendo %in%
@@ -52,7 +62,7 @@ nome_lista_conciliazione = nome_lista_conciliazione %>%
                                 grepl("FRATELLI D'ITALIA", nome_lista_eligendo) ~ "FDI",
                                 grepl("UNIONE POPOLARE|POTERE AL POPOLO", nome_lista_eligendo) ~ "PAP",
                                 grepl("PSDI|PARTITO SOCIALISTA", nome_lista_eligendo) ~ "PSI",
-                                grepl("POPOLO DELLA LIBERTA", nome_lista_eligendo) ~ "PDL",
+                                grepl("POPOLO DELLA LIBERTA", nome_lista_eligendo) ~ "FI",
                                 grepl("UNIONE DI CENTRO|UDC", nome_lista_eligendo) ~ "UDC",
                                 grepl("LIBERALE", nome_lista_eligendo) ~ "PLI",
                                 grepl("ITALIA DEI VALORI|DIPIETRO", nome_lista_eligendo) ~ "IDV",
@@ -143,7 +153,8 @@ ui = fluidPage(
                            ),
               tags$section(class = "dashboard-panels-2col",
                            reactableOutput("table_partiti"),
-                           leafletOutput("map_partiti"))
+                           leafletOutput("map_partiti")%>%
+                             withmyLoader(., type = "html", loader = "loader"))
     )
 )
 
@@ -244,12 +255,15 @@ server = function(input, output, session) {
     (if(!is.null(r$tree_table)){
       readRDS(r$tree_table$temp_rds) %>%
         left_join(r$nome_lista_conciliazione,
-                  by = c("nome_lista" = "nome_lista_opendata"))%>%
+                  by = c("nome_lista" = "nome_lista_opendata")) %>%
         select(id_sezione,
                nome_lista = nome_lista_eligendo,
                voti_validi,
                nome_coalizione = nome_coalizione_eligendo,
-               id_lista, id_coalizione)
+               id_lista, id_coalizione) %>%
+        group_by(id_sezione) %>%
+        mutate(tot_voti_validi = sum(voti_validi)) %>%
+        ungroup()
     }else{NULL})})
 
   voti_partito = reactive({
@@ -282,7 +296,10 @@ server = function(input, output, session) {
                nome_lista = nome_lista_eligendo,
                voti_validi,
                nome_coalizione = nome_coalizione_eligendo,
-               id_lista, id_coalizione)
+               id_lista, id_coalizione) %>%
+        group_by(id_sezione) %>%
+        mutate(tot_voti_validi = sum(voti_validi)) %>%
+        ungroup()
     }else{NULL})})
 
   voti_partito_prev = reactive({
@@ -330,7 +347,7 @@ server = function(input, output, session) {
     }else{delta = "-"; delta_label = "-"}
 
     img_src = r$contrassegni %>% filter(nome_lista_eligendo == metric) %>%
-      mutate(img_src = paste0(github_prefix, "/data/", key, "/", image)) %>% pull(img_src)
+      mutate(img_src = paste0("data/", key, "/", image)) %>% pull(img_src)
 
     panel_ui("Primo Partito", metric, metric_type = NULL,
              "Risultato", detail1,
@@ -368,7 +385,7 @@ server = function(input, output, session) {
 
     nome_lista = voti_coalizione() %>% slice(1) %>% pull(nome_lista) %>% unlist()
     img_src = r$contrassegni %>% filter(nome_lista_eligendo %in% nome_lista) %>%
-      mutate(img_src = paste0(github_prefix, "/data/", key, "/", image)) %>% pull(img_src)
+      mutate(img_src = paste0("data/", key, "/", image)) %>% pull(img_src)
 
     panel_ui("Prima Coalizione", metric, metric_type = NULL,
              "Risultato", detail1,
@@ -382,58 +399,155 @@ server = function(input, output, session) {
 
   voti_sezioni_map = reactive({
     (if(!is.null(voti_sezioni())){
-      voti_sezioni()  %>%
-        group_by(id_sezione) %>%
-        mutate(tot_voti_validi = sum(voti_validi)) %>%
-        ungroup() %>%
+      voti_sezioni() %>%
         {if (!is.null(table_partiti_selected()))
           filter(., nome_lista %in% (voti_partito() %>%
                    slice(table_partiti_selected()) %>%
                    pull(nome_lista))) else .} %>%
-        group_by(id_sezione) %>%
+        group_by(id_sezione, id_lista) %>%
         summarise(risultato = sum(voti_validi)/first(tot_voti_validi), .groups = "drop") %>%
+        {if (!is.null(voti_sezioni_prev()))
+          left_join(., voti_sezioni_prev() %>%
+                      filter(id_lista != "-") %>%
+                      group_by(id_sezione, id_lista) %>%
+                      summarise(risultato_prev = sum(voti_validi)/first(tot_voti_validi), .groups = "drop"),
+                    by = c("id_sezione", "id_lista"))
+          else mutate(., risultato_prev = NA)} %>%
+        mutate(delta = risultato - risultato_prev) %>%
         left_join(sezioni_polygons, by = "id_sezione") %>%
         st_set_geometry("geometry")
-    }else{NULL})})
+    }else{NULL})
+  })
 
   output$map_partiti = renderLeaflet({
+
     if(!is.null(table_partiti_selected())){
 
-    map_data = voti_sezioni_map()
-    risultato_discrete = seq(floor(100*min(map_data$risultato)),
-                             ceiling(100*max(map_data$risultato)),
-                             length = 8) %>% floor()/100
+      ### Mappa Sezioni density ###
 
-    legend_color = viridis_pal(option = "G", direction = 1)(length(risultato_discrete)-1)
-    legend_labels = paste0(label_percent()(risultato_discrete)[-length(risultato_discrete)], " - ",
-                           label_percent()(risultato_discrete)[-1]) %>% rev()
+      map_data = voti_sezioni_map()
 
-    pal = colorNumeric(viridis_pal(option = "G", direction = -1)(20),
-                       range(risultato_discrete))
+      risultato_discrete = seq(floor(100*min(map_data$risultato)),
+                               ceiling(100*max(map_data$risultato)),
+                               length = 8) %>% floor()/100
 
-    map_data = map_data %>%
-      mutate(risultato_col = risultato %>% ifelse(. <= min(risultato_discrete), min(risultato_discrete), .) %>%
-               ifelse(. >= max(risultato_discrete), max(risultato_discrete), .))
+      legend_color = viridis_pal(option = "G", direction = 1)(length(risultato_discrete)-1)
+      legend_labels = paste0("Da ", label_percent(accuracy = 0.01)(risultato_discrete)[-length(risultato_discrete)],
+                             " a ",
+                             label_percent(accuracy = 0.01)(risultato_discrete)[-1]) %>% rev()
 
-    leaflet() %>%
-      addProviderTiles("CartoDB.Positron",
-                       options = providerTileOptions(minZoom = 11, maxZoom = 16, className = "dark-map-tiles")) %>%
-      setView(lng = 11.3493292, lat = 44.492245, zoom = 12) %>%
-      setMaxBounds(lng1 = 11.22814, lat1 = 44.41880, lng2 = 11.43364, lat2 = 44.55736) %>%
-      addPolygons(data = map_data, group = "Sezioni density",
-                  weight = 0.5, opacity = 1, fillOpacity = 0.5,
-                  color = ~pal(risultato_col),
-                  smoothFactor = 0.1, # label  = ~affluenza_label,
-                  highlight = highlightOptions(weight = 1, fillOpacity = 1, color = "white",
-                                               bringToFront = TRUE,sendToBack = TRUE)) %>%
-      addLegend("bottomright",
-                colors = legend_color,
-                labels = legend_labels,
-                opacity = 0.7, title = "Risultato %")
-}
+      pal_M1 = colorNumeric(viridis_pal(option = "G", direction = -1)(20),
+                            range(risultato_discrete))
+
+      map_data = map_data %>%
+        mutate(risultato_col = risultato %>% ifelse(. <= min(risultato_discrete), min(risultato_discrete), .) %>%
+                 ifelse(. >= max(risultato_discrete), max(risultato_discrete), .)) %>%
+        left_join(r$sezioni %>% distinct(id_sezione, id_seggio, indirizzo), by = "id_sezione") %>%
+                    mutate(label_M1 = paste0(
+                      "Sezione: <strong>", id_sezione, "</strong><br>",
+                      "Seggio: <strong>", id_seggio, "</strong><br>",
+                      "Indirizzo: <strong>", indirizzo, "</strong><br>",
+                      "Risultato: <strong>", 100*round(risultato, 4), "%</strong>"))
+
+      map_data$label_M1 = map_data$label_M1 %>% lapply(htmltools::HTML)
+
+      map_output = leaflet() %>%
+        addProviderTiles("CartoDB.Positron",
+                         options = providerTileOptions(minZoom = 11, maxZoom = 16, className = "dark-map-tiles")) %>%
+        setView(lng = 11.3493292, lat = 44.492245, zoom = 12) %>%
+        setMaxBounds(lng1 = 11.22814, lat1 = 44.41880, lng2 = 11.43364, lat2 = 44.55736) %>%
+        addPolygons(data = map_data, group = "Sezioni density",
+                    weight = 0.5, opacity = 1, fillOpacity = 0.5,
+                    color = ~pal_M1(risultato_col),
+                    smoothFactor = 0.1, label  = ~label_M1,
+                    highlight = highlightOptions(weight = 1, fillOpacity = 1, color = "white",
+                                                 bringToFront = TRUE,sendToBack = TRUE)) %>%
+        addLegend("bottomright", layerId = "Sezioni density",
+                  colors = legend_color,
+                  labels = legend_labels,
+                  opacity = 0.7, title = "Risultato %")
+
+      ### Mappa Delta ###
+        if(!all(is.na(map_data$delta))){
+          delta_discrete = c(-0.2, -0.1, -0.05, -0.01, -0.005, 0,
+                             0.005, 0.01, 0.05, 0.1, 0.2)
+
+          legend_M2_color = c(colorRampPalette(c(red, "white"))(5), colorRampPalette(c("white", green))(5))
+
+          legend_M2_labels = paste0("Da ", label_percent(accuracy = 0.1, style_positive = "plus")(delta_discrete)[-length(delta_discrete)],
+                                    " a ",
+                                 label_percent(accuracy = 0.1, style_positive = "plus")(delta_discrete)[-1]) %>% rev()
+          pal_M2 = colorBin(legend_M2_color, bins = delta_discrete)
+
+          map_data = map_data %>%
+            mutate(delta_col = delta %>% ifelse(. <= min(delta_discrete), min(delta_discrete), .) %>%
+                     ifelse(. >= max(delta_discrete), max(delta_discrete), .)) %>%
+            mutate(label_M2 = paste0(
+              "Sezione: <strong>", id_sezione, "</strong><br>",
+              "Seggio: <strong>", id_seggio, "</strong><br>",
+              "Indirizzo: <strong>", indirizzo, "</strong><br>",
+              "Risultato: <strong>", 100*round(risultato, 4), "%</strong><br>",
+              "Risultato Precedente: <strong>", 100*round(risultato_prev, 4), "%</strong><br>",
+              "Delta: <strong>", label_percent(accuracy = 0.01, style_positive = "plus")(delta), "%</strong>"))
+
+          map_data$label_M2 = map_data$label_M2 %>% lapply(htmltools::HTML)
+
+          map_output = map_output %>%
+            addPolygons(data = map_data, group = "Sezioni delta",
+                        weight = 0.5, opacity = 1, fillOpacity = 0.5,
+                        color = ~pal_M2(delta_col),
+                        smoothFactor = 0.1, label  = ~label_M2,
+                        highlight = highlightOptions(weight = 1, fillOpacity = 1, color = "white",
+                                                     bringToFront = TRUE,sendToBack = TRUE)) %>%
+            addLegend("bottomright", layerId = "Sezioni delta",
+                      colors = legend_M2_color %>% rev(),
+                      labels = legend_M2_labels,
+                      opacity = 0.7, title = "Delta %")%>%
+            addLayersControl(baseGroups = c("Sezioni density", "Sezioni delta"),
+                             options = layersControlOptions(collapsed = FALSE)) %>%
+            # htmlwidgets::onRender(
+            #   jsCode = "function() { $('.leaflet-control-layers').css({
+            #   'border':'none',
+            #   'background': 'rgba(255,255,255,0.8)',
+            #   'box-shadow': '0 0 15px rgb(0 0 0 / 20%)'
+            #   });}"
+            # ) %>%
+            # htmlwidgets::onRender(
+            #   jsCode = paste0("function() { $('.leaflet-control-layers-base').prepend('<label style=\"text-align:left\"><strong><font size=\"4\">ciao</font></strong><br>ciaone</label>');}")
+            # ) %>%
+            htmlwidgets::onRender(paste0("
+                  function(el, x) {
+                    var initialLegend = 'Sezioni density' // Set the initial legend to be displayed by layerId
+                    var myMap = this;
+                    console.log('aaaaaaa');
+                    for (var legend in myMap.controls._controlsById) {
+                      var el = myMap.controls.get(legend.toString())._container;
+                      console.log(el);
+                      if(legend.toString() === initialLegend) {
+                        el.style.display = 'block';
+                      } else {
+                        el.style.display = 'none';
+                      };
+                    };
+                  myMap.on('baselayerchange',
+                    function (layer) {
+                      for (var legend in myMap.controls._controlsById) {
+                        var el = myMap.controls.get(legend.toString())._container;
+                        if(legend.toString() === layer.name) {
+                          el.style.display = 'block';
+                        } else {
+                          el.style.display = 'none';
+                        };
+                      };
+                    });
+                  }"))
+        }
+      map_output
+      }
   })
 
   ####--- table partiti ---####
+
   table_partiti_selected = reactive({
     getReactableState("table_partiti", "selected")
   })
@@ -441,17 +555,22 @@ server = function(input, output, session) {
   output$table_partiti = renderReactable({
 
     voti_partito() %>%
-      left_join(voti_partito_prev() %>%
-                   filter(id_lista != "-") %>%
-                   select(id_lista, voti_perc_prev = voti_perc),
-                 by = "id_lista") %>%
+      {if (is.null(voti_partito_prev())) mutate(.,voti_perc_prev = NA) else
+        left_join(., voti_partito_prev() %>%
+                    filter(id_lista != "-") %>%
+                    select(id_lista, voti_perc_prev = voti_perc),
+                  by = "id_lista")} %>%
       left_join(r$contrassegni %>% rename(nome_lista = nome_lista_eligendo) %>%
-                  mutate(img_src = paste0(github_prefix, "/data/", key, "/", image)),
+                  mutate(img_src = paste0("data/", key, "/", image)),
                 by = "nome_lista") %>%
       mutate(risultato_bar = voti_perc,
              delta = ifelse(!is.na(voti_perc_prev), voti_perc - voti_perc_prev, NA),
-             delta_col = case_when(is.na(delta) ~ "transparent",
-                                   delta > 0 ~ "#27b376", TRUE ~ "#FF364A")) %>%
+             delta_col = cut(delta,
+                             breaks = c(-1, -0.2, -0.1, -0.05, -0.01, -0.005, 0,
+                                        0.005, 0.01, 0.05, 0.1, 0.2, 1),
+                             labels = c(colorRampPalette(c(red, "white"))(6),
+                                        colorRampPalette(c("white", green))(6))) %>%
+               as.character() %>% ifelse(is.na(.), "transparent", .)) %>%
       select(img_src, nome_lista, id_coalizione,
              voti_perc, risultato_bar, delta, delta_col, voti_validi) %>%
       reactable(.,
@@ -459,14 +578,18 @@ server = function(input, output, session) {
                 style = list(fontSize = "0.9rem"),
                 selection = "single", onClick = "select", defaultSelected = 1,
                 theme = reactableTheme(
-                  rowSelectedStyle = list(backgroundColor = "#15354a",
+                  rowSelectedStyle = list(backgroundColor = darkblue,
                                           color = "white", borderRadius = "6px"),
                   cellStyle = list(display = "flex", flexDirection = "column", justifyContent = "center")
                 ),
                 columns = list(
                   .selection = colDef(show = FALSE),
-                  img_src = colDef(name = "", width = 35, sticky = "left",
-                                   cell = embed_img(height = 30, width = 30)),
+                  img_src = colDef(name = "", width = 45, sticky = "left",
+                                   cell = function(value) {
+                                     img_src = image_uri(value)
+                                     image = img(src = img_src, style = "height: 30px;", alt = "")
+                                     div(style = "display: inline-block; width: 30px", image)
+                  }),
                   nome_lista = colDef(name = "Lista", minWidth = 250,
                                       footer = "Total"
                   ),
@@ -478,13 +601,13 @@ server = function(input, output, session) {
                     cell = color_tiles(.,
                                        number_fmt = function(x){
                                          if(is.na(x)){""
-                                           }else{scales::label_percent(accuracy = 0.01, style_positive = "plus")(x)}},
+                                           }else{label_percent(accuracy = 0.01, style_positive = "plus")(x)}},
                                        color_ref = "delta_col")
                   ),
                   delta_col = colDef(show = FALSE),
                   risultato_bar = colDef(name = "",
                     cell = data_bars(.,
-                                     fill_color = "#0099F9",
+                                     fill_color = blue,
                                      fill_gradient = FALSE,
                                      text_position = "none")
                   ),

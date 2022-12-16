@@ -1,3 +1,25 @@
+withmyLoader = function (ui_element, type = "html", loader = "dnaspin", proxy.height = if (grepl("height:\\s*\\d",
+                                                                                  ui_element)) NULL else "400px")
+{
+  stopifnot(type %in% c("html", "image", "text"))
+  proxy_element <- shiny::tagList()
+  if (!is.null(proxy.height)) {
+    proxy_element <- shiny::div(style = glue::glue("height:{ifelse(is.null(proxy.height),'100%',proxy.height)}"),
+                                class = "shiny-loader-placeholder")
+  }
+  htmlfile <- paste0("app_www/", loader, ".html")
+      shiny::tagList(shiny::singleton(shiny::tags$head(shiny::tags$link(rel = "stylesheet",
+                                                                        href = "assets/imgcustom-loader.css"))), shiny::singleton(shiny::tags$script(src = "assets/imgcustom-loader.js")),
+                     shiny::singleton(shiny::tags$head(shiny::tags$link(rel = "stylesheet",
+                                                                        href = "css-loaders/css/imgcustom-fallback.css"))),
+                     shiny::singleton(shiny::tags$head(shiny::tags$link(rel = "stylesheet",
+                                                                        href = paste0("app_www/", loader, ".css")))), shiny::div(class = "shiny-loader-output-container",
+                                                                                                                     shiny::div(class = "load-container", shiny::includeHTML(htmlfile)),
+                                                                                                                     proxy_element, ui_element))
+
+}
+
+
 panel_ui = function(metric_name, metric, metric_type = "perc",
                     detail1_name, detail1,
                     detail2_name, detail2,

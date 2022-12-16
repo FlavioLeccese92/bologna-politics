@@ -1,6 +1,16 @@
 /* All media-queries should use em values,
   as we want a consistent scaling for zoom and increased browser font-size functionalities.
   Due to Safari bugs rem's cannot be used */
+
+:root {
+  --red: #ef5350;
+  --green: #27b376;
+  --yellow: #ffca28;
+  --blue: #0099F9;
+  --dark-blue: #15354a;
+}
+
+
 .container-fluid{
   width: 100%;
   height: 100%;
@@ -48,7 +58,7 @@ html {
 }
 
 .userTabbed *:focus {
-  outline: 2px solid #0099F9;
+  outline: 2px solid var(--blue);
 }
 
 .dashboard {
@@ -91,10 +101,10 @@ p {
 }
 
 .positive-change {
-  color: #27b376;
+  color: var(--green);
 }
 .negative-change {
-  color: #FF364A;
+  color: var(--red);
 }
 .main-header {
   align-items: center;
@@ -178,7 +188,7 @@ p {
   transition: fill 0.2s;
 }
 .logo:hover {
-  fill: #0099F9;
+  fill: var(--blue);
 }
 
 .logo-shiny {
@@ -282,18 +292,18 @@ p {
   z-index: 9999;
 }
 .dashboard-filters .form-group .selectize-control.single .selectize-input:not(.input-active):hover {
-  border: 1px solid #0099F9;
+  border: 1px solid var(--blue);
 }
 .dashboard-filters .form-group .selectize-control.single .selectize-input:not(.input-active):hover > .item {
-  color: #0099F9;
+  color: var(--blue);
 }
 .dashboard-filters .form-group .selectize-control.single .selectize-input:not(.input-active):hover::after {
-  background-color: #0099F9;
+  background-color: var(--blue);
 }
 .dashboard-filters .form-group .selectize-control.single .selectize-input.input-active {
   color: white;
-  border-color: #15354A;
-  background-color: #15354A;
+  border-color: var(--dark-blue);
+  background-color: var(--dark-blue);
 }
 .dashboard-filters .form-group .selectize-control.single .selectize-input.input-active > .item {
   color: #fff;
@@ -424,7 +434,7 @@ p {
   z-index: 9999;
 }
 .panel-metric .shiny-input-container .selectize-control.single .selectize-input {
-  background-color: #15354A;
+  background-color: var(--dark-blue);
   border-radius: 6px 6px 0 0;
   padding: 0.4375rem 0.9375rem;
   border: none;
@@ -439,7 +449,7 @@ p {
   text-transform: uppercase;
 }
 .panel-metric .shiny-input-container .selectize-control.single .selectize-input:hover {
-  background-color: #0099F9;
+  background-color: var(--blue);
 }
 .panel-metric .shiny-input-container .selectize-control.single .selectize-input::after {
   background-color: #fff;
@@ -449,8 +459,8 @@ p {
   -webkit-mask-image: url(www/dots.svg);
 }
 .panel-metric .shiny-input-container .selectize-control.single .selectize-input.input-active {
-  border-color: #0099F9;
-  background-color: #0099F9;
+  border-color: var(--blue);
+  background-color: var(--blue);
 }
 .panel-metric .shiny-input-container .selectize-control.single .selectize-input.input-active::after {
   transform: scaleX(0);
@@ -589,7 +599,7 @@ p {
   z-index: 9999;
 }
 .panel-chart .panel-header .selectize-control.single .selectize-input {
-  background-color: #15354A;
+  background-color: var(--dark-blue);
   border-radius: 6px 6px 0 0;
   padding: 0.4375rem 0.9375rem;
   border: none;
@@ -604,7 +614,7 @@ p {
   text-transform: uppercase;
 }
 .panel-chart .panel-header .selectize-control.single .selectize-input:hover {
-  background-color: #0099F9;
+  background-color: var(--blue);
 }
 .panel-chart .panel-header .selectize-control.single .selectize-input::after {
   background-color: #fff;
@@ -614,8 +624,8 @@ p {
   -webkit-mask-image: url(www/dots.svg);
 }
 .panel-chart .panel-header .selectize-control.single .selectize-input.input-active {
-  border-color: #0099F9;
-  background-color: #0099F9;
+  border-color: var(--blue);
+  background-color: var(--blue);
 }
 .panel-chart .panel-header .selectize-control.single .selectize-input.input-active::after {
   transform: scaleX(0);
@@ -636,7 +646,7 @@ p {
   width: 100%;
 }
 .panel-chart .breakdown-header {
-  background-color: #15354A;
+  background-color: var(--dark-blue);
   border-radius: 6px 6px 0 0;
   padding: 0.4375rem 0.9375rem;
 }
@@ -765,18 +775,18 @@ p {
   z-index: 9999;
 }
 .dashboard-filters-vertical .form-group .selectize-control.single .selectize-input:not(.input-active):hover {
-  border: 1px solid #0099F9;
+  border: 1px solid var(--blue);
 }
 .dashboard-filters-vertical .form-group .selectize-control.single .selectize-input:not(.input-active):hover > .item {
-  color: #0099F9;
+  color: var(--blue);
 }
 .dashboard-filters-vertical .form-group .selectize-control.single .selectize-input:not(.input-active):hover::after {
-  background-color: #0099F9;
+  background-color: var(--blue);
 }
 .dashboard-filters-vertical .form-group .selectize-control.single .selectize-input.input-active {
   color: white;
-  border-color: #15354A;
-  background-color: #15354A;
+  border-color: var(--dark-blue);
+  background-color: var(--dark-blue);
 }
 .dashboard-filters-vertical .form-group .selectize-control.single .selectize-input.input-active > .item {
   color: #fff;
@@ -821,7 +831,7 @@ p {
   overflow-x: overlay;
 }
 .rt-th {
-    border-bottom: 2px solid #15354a;
+    border-bottom: 2px solid var(--dark-blue);
     border-radius: 0px;
 }
 /* added leaflet
@@ -843,5 +853,12 @@ p {
   }
 } */
 .leaflet-container{
-    height: auto!important;
+    height: 100%!important;
+}
+.shiny-loader-output-container {
+  width: 100%!important;
+    overflow-x: hidden;
+}
+.load-container {
+  left: 45%;
 }
