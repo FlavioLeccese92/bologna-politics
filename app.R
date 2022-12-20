@@ -10,10 +10,11 @@ library(leaflet)
 library(leaflet.extras)
 library(leaflegend)
 library(viridis)
-# library(shinycustomloader)
 library(waiter)
 library(knitr)
 library(shinyjs)
+
+pdf(NULL)
 
 addResourcePath("app_www", paste0(getwd(), "/app_www"))
 addResourcePath("data", paste0(getwd(), "/data"))
@@ -161,7 +162,7 @@ ui = fluidPage(
                            ),
               tags$section(class = "dashboard-panels-2col",
                            reactableOutput("table_partiti"),
-                           leafletOutput("map_liste")# %>% add_loader(., type = "html", loader = "loader")
+                           leafletOutput("map_liste")
                            )
     )
 )
@@ -583,6 +584,5 @@ server = function(input, output, session) {
   })
 
 }
-
 
 shinyApp(ui = ui, server = server)
