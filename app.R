@@ -8,9 +8,12 @@ library(reactablefmtr)
 library(sf)
 library(leaflet)
 library(leaflet.extras)
+library(leaflegend)
 library(viridis)
-library(shinycustomloader)
+# library(shinycustomloader)
+library(waiter)
 library(knitr)
+library(shinyjs)
 
 addResourcePath("app_www", paste0(getwd(), "/app_www"))
 addResourcePath("data", paste0(getwd(), "/data"))
@@ -119,7 +122,12 @@ nome_lista_conciliazione = nome_lista_conciliazione %>%
 source("app_functions/functions.R")
 
 ui = fluidPage(
+    useShinyjs(),
+    autoWaiter(html = div(class = "loading", tags$i(), tags$i(), tags$i(), tags$i())),
     includeCSS("app_www/styles.css"),
+    includeCSS("app_www/loader.css"),
+    tags$head(tags$script(src = "app_www/methods.js"),
+              tags$script(src = "app_www/script.js")),
     tags$link(href="https://fonts.googleapis.com/css2?family=Maven+Pro:wght@400;500;700&amp;display=swap", rel="stylesheet"),
     tags$main(class = "dashboard",
               tags$header(class = "dashboard-header",
@@ -153,8 +161,8 @@ ui = fluidPage(
                            ),
               tags$section(class = "dashboard-panels-2col",
                            reactableOutput("table_partiti"),
-                           leafletOutput("map_partiti")%>%
-                             withmyLoader(., type = "html", loader = "loader"))
+                           leafletOutput("map_liste")# %>% add_loader(., type = "html", loader = "loader")
+                           )
     )
 )
 
@@ -360,7 +368,6 @@ server = function(input, output, session) {
   ####--- Voti coalizione ---####
 
   output$sum_coalizione = renderUI({
-
     metric = voti_coalizione() %>% slice(1) %>% pull(id_coalizione)
 
     detail1 = voti_coalizione() %>% slice(1) %>% pull(voti_perc)
@@ -398,7 +405,7 @@ server = function(input, output, session) {
   ####--- map partiti sezioni ---####
 
   voti_sezioni_map = reactive({
-    (if(!is.null(voti_sezioni())){
+    (if(!is.null(voti_sezioni()) && length(table_partiti_selected()) == 1){
       voti_sezioni() %>%
         {if (!is.null(table_partiti_selected()))
           filter(., nome_lista %in% (voti_partito() %>%
@@ -419,132 +426,89 @@ server = function(input, output, session) {
     }else{NULL})
   })
 
-  output$map_partiti = renderLeaflet({
+  output$map_liste = renderLeaflet({
+    leaflet() %>%
+      addProviderTiles("CartoDB.Positron",
+                       options = providerTileOptions(minZoom = 11, maxZoom = 16, className = "dark-map-tiles")) %>%
+      setView(lng = 11.3493292, lat = 44.492245, zoom = 12) %>%
+      setMaxBounds(lng1 = 11.22814, lat1 = 44.41880, lng2 = 11.43364, lat2 = 44.55736) %>%
+      addPolygons(data = sezioni_polygons %>% mutate(id_sezione = as.character(id_sezione)),
+                  layerId = ~id_sezione,
+                  weight = 0.5, opacity = 1, fillOpacity = 0.5, smoothFactor = 0.1,
+                  fillColor = "transparent", color = "transparent", label = "",
+                  highlight = highlightOptions(weight = 1, fillOpacity = 1,
+                                               bringToFront = TRUE, sendToBack = TRUE)) %>%
+      addBootstrapDependency() %>%
+      addEasyButtonBar(
+        easyButton(id = "map_liste_density_btn",
+          icon = tags$svg(id = "map_liste_density_icon",
+                          class = "icon", viewBox="0 0 31 30",
+                          style = "width: 100%; height: 100%; fill: #fff",
+                          tags$use(href="app_www/density.svg#density")),
+          onClick = JS(easy_button_js)),
+        easyButton(id = "map_liste_variation_btn",
+          icon = tags$svg(id = "map_liste_variation_icon",
+                          class = "icon", viewBox="0 0 31 30",
+                          style = "width: 100%; height: 100%; fill: #15354a",
+                          tags$use(href="app_www/variation.svg#variation")),
+          onClick = JS(easy_button_js)))
+  })
 
-    if(!is.null(table_partiti_selected())){
+  observeEvent(input$map_liste_type,{
+    # print(input$map_liste_type)
+  })
 
-      ### Mappa Sezioni density ###
+  observeEvent(c(voti_sezioni_map(), input$map_liste_type), {
+    map_data = voti_sezioni_map()
 
-      map_data = voti_sezioni_map()
+    if(all(is.na(map_data$delta))){
+      shinyjs::disable("map_liste_variation_btn")
+    }else{shinyjs::enable("map_liste_variation_btn")}
 
-      risultato_discrete = seq(floor(100*min(map_data$risultato)),
-                               ceiling(100*max(map_data$risultato)),
-                               length = 8) %>% floor()/100
+    if(all(is.na(map_data$delta)) && input$map_liste_type == "variation"){
+      runjs('$("#map_liste_density_btn").click()')
+    } else if(!is.null(map_data)){
+      if(input$map_liste_type == "density"){
+        ris_min = ceiling(100*min(map_data$risultato))/100; ris_max = floor(100*max(map_data$risultato))/100
+        title = "Risultato %"; style_positive = "none"
+        pal = colorNumeric(viridis_pal(option = "G", direction = -1)(10), c(ris_min, ris_max))
 
-      legend_color = viridis_pal(option = "G", direction = 1)(length(risultato_discrete)-1)
-      legend_labels = paste0("Da ", label_percent(accuracy = 0.01)(risultato_discrete)[-length(risultato_discrete)],
-                             " a ",
-                             label_percent(accuracy = 0.01)(risultato_discrete)[-1]) %>% rev()
-
-      pal_M1 = colorNumeric(viridis_pal(option = "G", direction = -1)(20),
-                            range(risultato_discrete))
-
-      map_data = map_data %>%
-        mutate(risultato_col = risultato %>% ifelse(. <= min(risultato_discrete), min(risultato_discrete), .) %>%
-                 ifelse(. >= max(risultato_discrete), max(risultato_discrete), .)) %>%
-        left_join(r$sezioni %>% distinct(id_sezione, id_seggio, indirizzo), by = "id_sezione") %>%
-                    mutate(label_M1 = paste0(
-                      "Sezione: <strong>", id_sezione, "</strong><br>",
-                      "Seggio: <strong>", id_seggio, "</strong><br>",
-                      "Indirizzo: <strong>", indirizzo, "</strong><br>",
-                      "Risultato: <strong>", 100*round(risultato, 4), "%</strong>"))
-
-      map_data$label_M1 = map_data$label_M1 %>% lapply(htmltools::HTML)
-
-      map_output = leaflet() %>%
-        addProviderTiles("CartoDB.Positron",
-                         options = providerTileOptions(minZoom = 11, maxZoom = 16, className = "dark-map-tiles")) %>%
-        setView(lng = 11.3493292, lat = 44.492245, zoom = 12) %>%
-        setMaxBounds(lng1 = 11.22814, lat1 = 44.41880, lng2 = 11.43364, lat2 = 44.55736) %>%
-        addPolygons(data = map_data, group = "Sezioni density",
-                    weight = 0.5, opacity = 1, fillOpacity = 0.5,
-                    color = ~pal_M1(risultato_col),
-                    smoothFactor = 0.1, label  = ~label_M1,
-                    highlight = highlightOptions(weight = 1, fillOpacity = 1, color = "white",
-                                                 bringToFront = TRUE,sendToBack = TRUE)) %>%
-        addLegend("bottomright", layerId = "Sezioni density",
-                  colors = legend_color,
-                  labels = legend_labels,
-                  opacity = 0.7, title = "Risultato %")
-
-      ### Mappa Delta ###
-        if(!all(is.na(map_data$delta))){
-          delta_discrete = c(-0.2, -0.1, -0.05, -0.01, -0.005, 0,
-                             0.005, 0.01, 0.05, 0.1, 0.2)
-
-          legend_M2_color = c(colorRampPalette(c(red, "white"))(5), colorRampPalette(c("white", green))(5))
-
-          legend_M2_labels = paste0("Da ", label_percent(accuracy = 0.1, style_positive = "plus")(delta_discrete)[-length(delta_discrete)],
-                                    " a ",
-                                 label_percent(accuracy = 0.1, style_positive = "plus")(delta_discrete)[-1]) %>% rev()
-          pal_M2 = colorBin(legend_M2_color, bins = delta_discrete)
-
+        map_data = map_data %>%
+          mutate(val_col = risultato %>% ifelse(. <= ris_min, ris_min, .) %>% ifelse(. >= ris_max, ris_max, .)) %>%
+          left_join(r$sezioni %>% distinct(id_sezione, id_seggio, indirizzo), by = "id_sezione") %>%
+          mutate(label = paste0(
+            "Sezione: <strong>", id_sezione, "</strong><br>",
+            "Seggio: <strong>", id_seggio, "</strong><br>",
+            "Indirizzo: <strong>", indirizzo, "</strong><br>",
+            "Risultato: <strong>", 100*round(risultato, 4), "%</strong>")) %>%
+          mutate(id_sezione = as.character(id_sezione))
+        }else{
+          ris_max = ceiling(100*max(abs(map_data$delta)))/100; ris_min = -ris_max
+          title = "Delta %"; style_positive = "plus"
+          pal = colorNumeric(c(red, red, yellow, green, green), c(ris_min, ris_max))
           map_data = map_data %>%
-            mutate(delta_col = delta %>% ifelse(. <= min(delta_discrete), min(delta_discrete), .) %>%
-                     ifelse(. >= max(delta_discrete), max(delta_discrete), .)) %>%
-            mutate(label_M2 = paste0(
+            mutate(val_col = delta %>% ifelse(. <= ris_min, ris_min, .) %>% ifelse(. >= ris_max, ris_max, .)) %>%
+            left_join(r$sezioni %>% distinct(id_sezione, id_seggio, indirizzo), by = "id_sezione") %>%
+            mutate(label = paste0(
               "Sezione: <strong>", id_sezione, "</strong><br>",
               "Seggio: <strong>", id_seggio, "</strong><br>",
               "Indirizzo: <strong>", indirizzo, "</strong><br>",
               "Risultato: <strong>", 100*round(risultato, 4), "%</strong><br>",
-              "Risultato Precedente: <strong>", 100*round(risultato_prev, 4), "%</strong><br>",
+              "Risultato precedente: <strong>", 100*round(risultato_prev, 4), "%</strong><br>",
               "Delta: <strong>", label_percent(accuracy = 0.01, style_positive = "plus")(delta), "%</strong>"))
-
-          map_data$label_M2 = map_data$label_M2 %>% lapply(htmltools::HTML)
-
-          map_output = map_output %>%
-            addPolygons(data = map_data, group = "Sezioni delta",
-                        weight = 0.5, opacity = 1, fillOpacity = 0.5,
-                        color = ~pal_M2(delta_col),
-                        smoothFactor = 0.1, label  = ~label_M2,
-                        highlight = highlightOptions(weight = 1, fillOpacity = 1, color = "white",
-                                                     bringToFront = TRUE,sendToBack = TRUE)) %>%
-            addLegend("bottomright", layerId = "Sezioni delta",
-                      colors = legend_M2_color %>% rev(),
-                      labels = legend_M2_labels,
-                      opacity = 0.7, title = "Delta %")%>%
-            addLayersControl(baseGroups = c("Sezioni density", "Sezioni delta"),
-                             options = layersControlOptions(collapsed = FALSE)) %>%
-            # htmlwidgets::onRender(
-            #   jsCode = "function() { $('.leaflet-control-layers').css({
-            #   'border':'none',
-            #   'background': 'rgba(255,255,255,0.8)',
-            #   'box-shadow': '0 0 15px rgb(0 0 0 / 20%)'
-            #   });}"
-            # ) %>%
-            # htmlwidgets::onRender(
-            #   jsCode = paste0("function() { $('.leaflet-control-layers-base').prepend('<label style=\"text-align:left\"><strong><font size=\"4\">ciao</font></strong><br>ciaone</label>');}")
-            # ) %>%
-            htmlwidgets::onRender(paste0("
-                  function(el, x) {
-                    var initialLegend = 'Sezioni density' // Set the initial legend to be displayed by layerId
-                    var myMap = this;
-                    console.log('aaaaaaa');
-                    for (var legend in myMap.controls._controlsById) {
-                      var el = myMap.controls.get(legend.toString())._container;
-                      console.log(el);
-                      if(legend.toString() === initialLegend) {
-                        el.style.display = 'block';
-                      } else {
-                        el.style.display = 'none';
-                      };
-                    };
-                  myMap.on('baselayerchange',
-                    function (layer) {
-                      for (var legend in myMap.controls._controlsById) {
-                        var el = myMap.controls.get(legend.toString())._container;
-                        if(legend.toString() === layer.name) {
-                          el.style.display = 'block';
-                        } else {
-                          el.style.display = 'none';
-                        };
-                      };
-                    });
-                  }"))
-        }
-      map_output
-      }
-  })
+          }
+      leafletProxy("map_liste") %>%
+        clearControls() %>%
+        setShapeStyle(data = map_data, layerId = ~id_sezione,
+                      weight = 0.5, opacity = 1, fillOpacity = 0.5, smoothFactor = 0.1,
+                      color = ~pal(val_col), fillColor = ~pal(val_col)) %>%
+        setShapeLabel(data = map_data, layerId = ~id_sezione, label = ~label) %>%
+        addLegendNumeric(data = map_data, pal = pal, values = ~val_col, title = title,
+                         orientation = 'horizontal', fillOpacity = .7, width = 150,
+                         height = 20, position = 'bottomright',
+                         numberFormat = label_percent(accuracy = 1, style_positive = style_positive))
+    }
+    })
 
   ####--- table partiti ---####
 
@@ -565,12 +529,12 @@ server = function(input, output, session) {
                 by = "nome_lista") %>%
       mutate(risultato_bar = voti_perc,
              delta = ifelse(!is.na(voti_perc_prev), voti_perc - voti_perc_prev, NA),
-             delta_col = cut(delta,
+             delta_col = cut(ifelse(is.na(delta), 0, delta),
                              breaks = c(-1, -0.2, -0.1, -0.05, -0.01, -0.005, 0,
                                         0.005, 0.01, 0.05, 0.1, 0.2, 1),
-                             labels = c(colorRampPalette(c(red, "white"))(6),
-                                        colorRampPalette(c("white", green))(6))) %>%
-               as.character() %>% ifelse(is.na(.), "transparent", .)) %>%
+                             labels = c(colorRampPalette(c(red, yellow))(6),
+                                        colorRampPalette(c(yellow, green))(6))) %>% as.character(),
+             delta_col = ifelse(is.na(delta), "transparent", delta_col)) %>%
       select(img_src, nome_lista, id_coalizione,
              voti_perc, risultato_bar, delta, delta_col, voti_validi) %>%
       reactable(.,

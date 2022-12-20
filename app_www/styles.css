@@ -853,12 +853,38 @@ p {
   }
 } */
 .leaflet-container{
-    height: 100%!important;
+  height: 100%!important;
 }
 .shiny-loader-output-container {
   width: 100%!important;
-    overflow-x: hidden;
+  overflow-x: hidden;
 }
 .load-container {
   left: 45%;
+}
+.legend {
+  font-family: "Maven Pro", sans-serif!important;
+  color: #525252!important;
+}
+.legend > div:nth-child(2) {
+  margin-left: 0px!important;
+  margin-right: 0px!important;
+  margin-bottom: -6px;
+}
+.legend > div:nth-child(3) > div:nth-child(2) {
+  left: 123px!important;
+}
+.leaflet-tooltip {
+  font-family: "Maven Pro", sans-serif!important;
+  color: #525252!important;
+}
+#map_liste_density_btn {
+  background-color: #525252;
+}
+/* waiter */
+.waiter-overlay {
+  scale: 1.01;
+  border-radius: 4px!important;
+  background-color: #e3e7e9!important;
+  left: auto!important;
 }
