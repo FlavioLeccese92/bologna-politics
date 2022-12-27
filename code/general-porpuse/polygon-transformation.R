@@ -14,6 +14,7 @@ library(smoothr)
 options(cli.progress_bar_style = "fillsquares",
         cli.progress_show_after = 0)
 
+quartieri = readRDS("data/general-porpuse/quartieri.rds")
 zone = readRDS("data/general-porpuse/zone.rds")
 aree_statistiche = readRDS("data/general-porpuse/aree_statistiche.rds")
 sezioni = readRDS("data/general-porpuse/sezioni.rds")
@@ -95,6 +96,21 @@ cli_progress_done()
 
 saveRDS(aree_stradali_polygons, "data/polygons/aree_stradali_polygons.rds")
 
+### quartieri_sf ###
+quartieri_sf =
+  quartieri %>%
+  unnest(coordinates) %>%
+  group_by(id_quartiere) %>%
+  mutate(longitude = coordinates %>% .[[1]] %>% .[1,,1] %>% list(),
+         latitude = coordinates %>% .[[1]] %>% .[1,,2] %>% list())  %>%
+  unnest(c(latitude, longitude)) %>%
+  select(id_quartiere, longitude, latitude) %>%
+  st_as_sf(., coords = c("longitude", "latitude")) %>%
+  summarise(geometry = st_combine(geometry), .groups = "drop") %>%
+  st_cast("POLYGON")
+
+saveRDS(quartieri_sf, "data/polygons/quartieri_polygons.rds")
+
 ### zone_sf ###
 zone_sf = zone %>%
   group_by(id_zona) %>%
@@ -107,6 +123,8 @@ zone_sf = zone %>%
   summarise(geometry = st_combine(geometry), .groups = "drop") %>%
   st_cast("POLYGON")
 
+saveRDS(zone_sf, "data/polygons/zone_polygons.rds")
+
 ### aree_statistiche_sf ###
 aree_statistiche_sf = aree_statistiche %>%
   group_by(id_area_statistica) %>%
@@ -118,6 +136,8 @@ aree_statistiche_sf = aree_statistiche %>%
   st_as_sf(., coords = c("longitude", "latitude")) %>%
   summarise(geometry = st_combine(geometry), .groups = "drop") %>%
   st_cast("POLYGON")
+
+saveRDS(aree_statistiche_sf, "data/polygons/aree_statistice_polygons.rds")
 
 ### civici_sezioni_sf
 civici_sezioni_sf = civici_sezioni %>%
@@ -179,7 +199,6 @@ cli_progress_done()
 polygon_finale = polygon_finale[!st_is_empty(polygon_finale),]
 
 ### civici_sezioni_polygons  ###
-
 civici_polygons = civici_sezioni %>%
   select(id_civico, id_sezione) %>%
   inner_join(polygon_finale, by = "id_civico") %>%

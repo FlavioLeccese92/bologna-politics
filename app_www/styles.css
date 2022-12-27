@@ -8,6 +8,7 @@
   --yellow: #ffca28;
   --blue: #0099F9;
   --dark-blue: #15354a;
+  --grey: #e3e7e9;
 }
 
 
@@ -32,7 +33,7 @@ body {
   align-items: center;
   display: flex;
   justify-content: center;
-  background-color: #e3e7e9;
+  background-color: var(--grey);
   margin: 0;
   min-height: 100vh;
   padding-top: 4.375rem;
@@ -802,6 +803,7 @@ p {
   grid-template-columns: 1fr;
   grid-template-rows: 400px 400px;
   width: 100%;
+  margin-bottom: 20px;
 }
 @media only screen and (min-width: 36em) {
   .dashboard-panels-2col {
@@ -813,6 +815,21 @@ p {
   .dashboard-panels-2col {
     grid-template-columns: repeat(2, 1fr);
     grid-template-rows: 600px;
+  }
+}
+/* panel-300 */
+
+.panel-300 {
+  grid-template-rows: 300px;
+}
+@media only screen and (min-width: 36em) {
+  .panel-300 {
+    grid-template-rows: repeat(2, 300px);
+  }
+}
+@media only screen and (min-width: 67.5em) {
+  .panel-300 {
+    grid-template-rows: 300px;
   }
 }
 /* added reactable */
@@ -885,6 +902,14 @@ p {
 .waiter-overlay {
   scale: 1.01;
   border-radius: 4px!important;
-  background-color: #e3e7e9!important;
+  background-color: var(--grey)!important;
   left: auto!important;
+}
+/* autocomplete */
+.autocomplete-active {
+    background-color: var(--dark-blue)!important;
+}
+.autocomplete-items div:hover {
+    background-color: var(--dark-blue)!important;
+    color: white;
 }

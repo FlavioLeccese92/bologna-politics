@@ -13,7 +13,14 @@ library(viridis)
 library(waiter)
 library(knitr)
 library(shinyjs)
+##
+library(echarts4r)
+library(tidyr)
+library(jsonlite)
+# library(dqshiny)
 
+
+# dev.off();
 pdf(NULL)
 
 addResourcePath("app_www", paste0(getwd(), "/app_www"))
@@ -31,9 +38,14 @@ quartieri = readRDS("data/general-porpuse/quartieri.rds")
 zone = readRDS("data/general-porpuse/zone.rds")
 aree_statistiche = readRDS("data/general-porpuse/aree_statistiche.rds")
 sezioni = readRDS("data/general-porpuse/sezioni.rds")
+civici_sezioni = readRDS("data/general-porpuse/civici_sezioni.rds")
+
+### demographic data ###
+pop_z_eta_sesso_civile  = readRDS("data/general-porpuse/pop_z_eta_sesso_civile.rds")
 
 ### polygons ###
 sezioni_polygons = readRDS("data/polygons/sezioni_polygons.rds")
+centroids = readRDS("data/polygons/centroids.rds")
 
 ### palette ###
 red = "#ef5350"
@@ -124,6 +136,7 @@ source("app_functions/functions.R")
 
 ui = fluidPage(
     useShinyjs(),
+    # useWaiter(),
     autoWaiter(html = div(class = "loading", tags$i(), tags$i(), tags$i(), tags$i())),
     includeCSS("app_www/styles.css"),
     includeCSS("app_www/loader.css"),
@@ -160,10 +173,25 @@ ui = fluidPage(
                            uiOutput("sum_partito"),
                            uiOutput("sum_coalizione")
                            ),
+              tags$section(class = "dashboard-panels",
+                           tags$div(class = "dashboard-filters-vertical",
+                                    selectizeInput("gen_level", "Livello",
+                                                   c("Quartieri", "Zone", "Aree statistiche", "Indirizzi"), "Quartieri"),
+                                    autocomplete_input("gen_level_value", "Valore", value = "",
+                                                       placeholder = "",
+                                                       c("", quartieri$nome_quartiere %>% sort()),
+                                                       contains = TRUE,
+                                                       max_options = 500)),
+                           div(), div(), div()),
               tags$section(class = "dashboard-panels-2col",
                            reactableOutput("table_partiti"),
                            leafletOutput("map_liste")
-                           )
+                           ),
+              tags$section(class = "dashboard-panels panel-300",
+                           uiOutput("pop_maschi"),
+                           uiOutput("pop_femmine")
+              )
+
     )
 )
 
@@ -172,6 +200,8 @@ server = function(input, output, session) {
   r = reactiveValues()
 
   observeEvent(input$gen_input_votazione, {
+    # waiter_show(html = div(class = "loading", tags$i(), tags$i(), tags$i(), tags$i()))
+
     organo = tree_table %>% filter(votazione == input$gen_input_votazione) %>%
       pull(organo) %>% unique()
     names(organo) = organo %>% gsub("_", " ", .) %>% str_to_title()
@@ -180,9 +210,12 @@ server = function(input, output, session) {
     anno = tree_table %>% filter(votazione == input$gen_input_votazione) %>%
       pull(anno) %>% unique()
     updateSelectizeInput(session = session, "gen_input_anno", choices = anno, selected = anno[1])
+
+    # waiter_hide()
   })
 
   observeEvent(c(input$gen_input_anno, input$gen_input_organo), {
+    # waiter_show(html = div(class = "loading", tags$i(), tags$i(), tags$i(), tags$i()))
 
     r$tree_table =
       tree_table %>%
@@ -220,21 +253,66 @@ server = function(input, output, session) {
       {if (is.null(r$tree_table_prev$key)) NULL else
         filter(., key == r$tree_table_prev$key, organo == input$gen_input_organo)}
 
-    ### in attesa di mettere filtri su sezioni ###
-    r$sezioni = sezioni %>%
+    r$gerarchia_sezioni = sezioni %>%
       left_join(aree_statistiche, by = "id_area_statistica") %>%
       left_join(zone, by = "id_zona") %>%
       left_join(quartieri, by = "id_quartiere")
 
+    r$gerarchia_indirizzi = civici_sezioni %>%
+      left_join(aree_statistiche, by = "id_area_statistica") %>%
+      left_join(zone, by = "id_zona") %>%
+      left_join(quartieri, by = "id_quartiere")
+
+    # waiter_hide()
     })
+
+  observeEvent(input$gen_level, {
+    req(r$gerarchia_indirizzi)
+    options = r$gerarchia_indirizzi %>%
+      {if(input$gen_level == "Quartieri") distinct(., nome_quartiere) %>% pull() %>% na.omit() %>% c("", .) else
+        if(input$gen_level == "Zone") distinct(., nome_zona) %>% pull() %>% na.omit() %>% c("", .)  else
+          if(input$gen_level == "Aree statistiche") distinct(., nome_area_statistica) %>% pull() %>% na.omit() %>% c("", .) else
+            if(input$gen_level == "Indirizzi") distinct(., indirizzo) %>% pull() %>% na.omit() %>% c("", .) else NULL
+      }
+    update_autocomplete_input(session = session, id = "gen_level_value", label = "Valore", options = options, value = "")
+  })
+
+  ####--- Sezione ---####
+  sezione = reactive({
+    (if(nchar(input$gen_level_value)>0){
+      r$gerarchia_indirizzi %>%
+        {if(input$gen_level == "Quartieri") filter(., nome_quartiere == input$gen_level_value) else
+          if(input$gen_level == "Zone") filter(., nome_zona == input$gen_level_value) else
+            if(input$gen_level == "Aree statistiche") filter(., nome_area_statistica == input$gen_level_value) else
+              if(input$gen_level == "Indirizzi") filter(., indirizzo == input$gen_level_value) else .} %>%
+        distinct(., id_sezione) %>% pull(id_sezione)
+    } else NULL)
+  })
+
+  ####--- gerarchia_indirizzi ---####
+  gerarchia_indirizzi = reactive({
+    (if(nchar(input$gen_level_value)>0){
+      r$gerarchia_indirizzi %>% filter(indirizzo == input$gen_level_value)
+    } else {NULL})
+  })
 
   ####--- Affluenza ---####
 
-  affluenza = reactive({if(!is.null(r$tree_table)){readRDS(r$tree_table$temp_affluenza_rds)}else{NULL}})
-  affluenza_prev = reactive({if(!is.null(r$tree_table_prev)){readRDS(r$tree_table_prev$temp_affluenza_rds)}else{NULL}})
+  affluenza = reactive({
+    if(!is.null(r$tree_table)){readRDS(r$tree_table$temp_affluenza_rds) %>%
+        { if(length(sezione())>0) filter(., id_sezione %in% sezione()) else
+          select(., everything()) }
+      }else{NULL}
+    })
+
+  affluenza_prev = reactive({
+    if(!is.null(r$tree_table_prev)){readRDS(r$tree_table_prev$temp_affluenza_rds) %>%
+        { if(length(sezione())>0) filter(., id_sezione %in% sezione()) else
+          select(., everything()) }
+    }else{NULL}
+    })
 
   output$sum_affluenza = renderUI({
-
     metric = sum(affluenza()$totale_votanti)/sum(affluenza()$iscritti)
 
     detail1 = sum(affluenza()$totale_votanti)
@@ -263,14 +341,17 @@ server = function(input, output, session) {
   voti_sezioni = reactive({
     (if(!is.null(r$tree_table)){
       readRDS(r$tree_table$temp_rds) %>%
+        { if(length(sezione())>0) mutate(., sezione_selected = id_sezione %in% sezione()) else
+          mutate(., sezione_selected = TRUE) } %>%
         left_join(r$nome_lista_conciliazione,
                   by = c("nome_lista" = "nome_lista_opendata")) %>%
         select(id_sezione,
                nome_lista = nome_lista_eligendo,
                voti_validi,
                nome_coalizione = nome_coalizione_eligendo,
-               id_lista, id_coalizione) %>%
-        group_by(id_sezione) %>%
+               id_lista, id_coalizione,
+               sezione_selected) %>%
+        group_by(id_sezione, sezione_selected) %>%
         mutate(tot_voti_validi = sum(voti_validi)) %>%
         ungroup()
     }else{NULL})})
@@ -278,6 +359,7 @@ server = function(input, output, session) {
   voti_partito = reactive({
     (if(!is.null(voti_sezioni())){
       voti_sezioni() %>%
+        filter(sezione_selected) %>%
         group_by(nome_lista, id_lista, id_coalizione) %>%
         summarise(voti_validi = sum(voti_validi), .groups = "drop") %>%
         mutate(voti_perc = voti_validi/sum(.$voti_validi)) %>%
@@ -287,6 +369,7 @@ server = function(input, output, session) {
   voti_coalizione = reactive({
     (if(!is.null(voti_sezioni())){
       voti_sezioni() %>%
+        filter(sezione_selected) %>%
         group_by(nome_coalizione, id_coalizione) %>%
         summarise(voti_validi = sum(voti_validi), .groups = "drop",
                   nome_lista = nome_lista %>% unique() %>% list()) %>%
@@ -299,14 +382,17 @@ server = function(input, output, session) {
   voti_sezioni_prev = reactive({
     (if(!is.null(r$tree_table_prev)){
       readRDS(r$tree_table_prev$temp_rds) %>%
+        { if(length(sezione())>0) mutate(., sezione_selected = id_sezione %in% sezione()) else
+          mutate(., sezione_selected = TRUE) } %>%
         left_join(r$nome_lista_conciliazione_prev,
-                  by = c("nome_lista" = "nome_lista_opendata"))%>%
+                  by = c("nome_lista" = "nome_lista_opendata")) %>%
         select(id_sezione,
                nome_lista = nome_lista_eligendo,
                voti_validi,
                nome_coalizione = nome_coalizione_eligendo,
-               id_lista, id_coalizione) %>%
-        group_by(id_sezione) %>%
+               id_lista, id_coalizione,
+               sezione_selected) %>%
+        group_by(id_sezione, sezione_selected) %>%
         mutate(tot_voti_validi = sum(voti_validi)) %>%
         ungroup()
     }else{NULL})})
@@ -314,6 +400,7 @@ server = function(input, output, session) {
   voti_partito_prev = reactive({
     (if(!is.null(voti_sezioni_prev())){
       voti_sezioni_prev() %>%
+        filter(sezione_selected) %>%
         group_by(nome_lista, id_lista, id_coalizione) %>%
         summarise(voti_validi = sum(voti_validi), .groups = "drop") %>%
         mutate(voti_perc = voti_validi/sum(.$voti_validi)) %>%
@@ -323,6 +410,7 @@ server = function(input, output, session) {
   voti_coalizione_prev = reactive({
     (if(!is.null(voti_sezioni_prev())){
       voti_sezioni_prev() %>%
+        filter(sezione_selected) %>%
         group_by(nome_coalizione, id_coalizione) %>%
         summarise(voti_validi = sum(voti_validi), .groups = "drop") %>%
         mutate(voti_perc = voti_validi/sum(.$voti_validi)) %>%
@@ -403,8 +491,49 @@ server = function(input, output, session) {
 
   })
 
-  ####--- map partiti sezioni ---####
+  #### Statistiche ####
 
+  ###--- pop_maschi ---###
+  observe({
+    output$pop_maschi = renderUI({
+      temp = pop_z_eta_sesso_civile %>%
+        filter(anno == input$gen_input_anno) %>%
+        {if(!is.null(gerarchia_indirizzi())) filter(., id_zona == gerarchia_indirizzi()$id_zona) else .}
+
+      plot = eta_bar_chart(temp,
+                           orientation = "right", color = blue, MF = "Maschi",
+                           height = "268px")
+
+      div(class = "panel panel-metric", #style = "height: 300px;",
+          div(style = "height: 32px; min-height: 0px; border-radius: 6px 6px 0px 0px;
+                  padding: 0.4375rem 0.9375rem; background-color: rgb(21, 53, 74); color: white;",
+              h4("Età maschi")),
+          plot
+      )
+    })
+  })
+
+  ###--- pop_femmine ---###
+  observe({
+    output$pop_femmine = renderUI({
+      temp = pop_z_eta_sesso_civile %>%
+        filter(anno == input$gen_input_anno) %>%
+        {if(!is.null(gerarchia_indirizzi())) filter(., id_zona == gerarchia_indirizzi()$id_zona) else .}
+
+      plot = eta_bar_chart(temp,
+                           orientation = "left", color = red, MF = "Femmine",
+                           height = "268px")
+
+      div(class = "panel panel-metric", #style = "height: 300px;",
+          div(style = "height: 32px; min-height: 0px; border-radius: 6px 6px 0px 0px;
+                padding: 0.4375rem 0.9375rem; background-color: rgb(21, 53, 74); color: white;",
+              h4("Età femmine")),
+          plot
+      )
+    })
+  })
+
+  ####--- map partiti sezioni ---####
   voti_sezioni_map = reactive({
     (if(!is.null(voti_sezioni()) && length(table_partiti_selected()) == 1){
       voti_sezioni() %>%
@@ -412,7 +541,7 @@ server = function(input, output, session) {
           filter(., nome_lista %in% (voti_partito() %>%
                    slice(table_partiti_selected()) %>%
                    pull(nome_lista))) else .} %>%
-        group_by(id_sezione, id_lista) %>%
+        group_by(id_sezione, id_lista, sezione_selected) %>%
         summarise(risultato = sum(voti_validi)/first(tot_voti_validi), .groups = "drop") %>%
         {if (!is.null(voti_sezioni_prev()))
           left_join(., voti_sezioni_prev() %>%
@@ -428,16 +557,20 @@ server = function(input, output, session) {
   })
 
   output$map_liste = renderLeaflet({
-    leaflet() %>%
+    # waiter_show(html = div(class = "loading", tags$i(), tags$i(), tags$i(), tags$i()))
+
+    map = leaflet() %>%
       addProviderTiles("CartoDB.Positron",
                        options = providerTileOptions(minZoom = 11, maxZoom = 16, className = "dark-map-tiles")) %>%
       setView(lng = 11.3493292, lat = 44.492245, zoom = 12) %>%
       setMaxBounds(lng1 = 11.22814, lat1 = 44.41880, lng2 = 11.43364, lat2 = 44.55736) %>%
       addPolygons(data = sezioni_polygons %>% mutate(id_sezione = as.character(id_sezione)),
                   layerId = ~id_sezione,
-                  weight = 0.5, opacity = 1, fillOpacity = 0.5, smoothFactor = 0.1,
+                  weight = 0.5,
+                  #opacity = 1, fillOpacity = 0.5,
+                  smoothFactor = 0.1,
                   fillColor = "transparent", color = "transparent", label = "",
-                  highlight = highlightOptions(weight = 1, fillOpacity = 1,
+                  highlight = highlightOptions(color = "white", weight = 2.5,
                                                bringToFront = TRUE, sendToBack = TRUE)) %>%
       addBootstrapDependency() %>%
       addEasyButtonBar(
@@ -453,10 +586,9 @@ server = function(input, output, session) {
                           style = "width: 100%; height: 100%; fill: #15354a",
                           tags$use(href="app_www/variation.svg#variation")),
           onClick = JS(easy_button_js)))
-  })
 
-  observeEvent(input$map_liste_type,{
-    # print(input$map_liste_type)
+    # waiter_hide()
+    map
   })
 
   observeEvent(c(voti_sezioni_map(), input$map_liste_type), {
@@ -476,38 +608,66 @@ server = function(input, output, session) {
 
         map_data = map_data %>%
           mutate(val_col = risultato %>% ifelse(. <= ris_min, ris_min, .) %>% ifelse(. >= ris_max, ris_max, .)) %>%
-          left_join(r$sezioni %>% distinct(id_sezione, id_seggio, indirizzo), by = "id_sezione") %>%
+          left_join(r$gerarchia_sezioni %>% distinct(id_sezione, id_seggio, indirizzo), by = "id_sezione") %>%
           mutate(label = paste0(
             "Sezione: <strong>", id_sezione, "</strong><br>",
             "Seggio: <strong>", id_seggio, "</strong><br>",
             "Indirizzo: <strong>", indirizzo, "</strong><br>",
             "Risultato: <strong>", 100*round(risultato, 4), "%</strong>")) %>%
-          mutate(id_sezione = as.character(id_sezione))
+          mutate(id_sezione = as.character(id_sezione))  %>%
+          mutate(highlight_col = ifelse(sezione_selected, 0.6, 0.2))
+
         }else{
           ris_max = ceiling(100*max(abs(map_data$delta)))/100; ris_min = -ris_max
           title = "Delta %"; style_positive = "plus"
           pal = colorNumeric(c(red, red, yellow, green, green), c(ris_min, ris_max))
           map_data = map_data %>%
             mutate(val_col = delta %>% ifelse(. <= ris_min, ris_min, .) %>% ifelse(. >= ris_max, ris_max, .)) %>%
-            left_join(r$sezioni %>% distinct(id_sezione, id_seggio, indirizzo), by = "id_sezione") %>%
+            left_join(r$gerarchia_sezioni %>% distinct(id_sezione, id_seggio, indirizzo), by = "id_sezione") %>%
             mutate(label = paste0(
               "Sezione: <strong>", id_sezione, "</strong><br>",
               "Seggio: <strong>", id_seggio, "</strong><br>",
               "Indirizzo: <strong>", indirizzo, "</strong><br>",
               "Risultato: <strong>", 100*round(risultato, 4), "%</strong><br>",
               "Risultato precedente: <strong>", 100*round(risultato_prev, 4), "%</strong><br>",
-              "Delta: <strong>", label_percent(accuracy = 0.01, style_positive = "plus")(delta), "%</strong>"))
-          }
+              "Delta: <strong>", label_percent(accuracy = 0.01, style_positive = "plus")(delta), "%</strong>")) %>%
+            mutate(highlight_col = ifelse(sezione_selected, 0.6, 0.2))
+        }
+
+      if(all(map_data$sezione_selected)){
+        focus = c(lon = 11.3493292, lat = 44.492245); zoom = 12}else{
+          focus = centroids %>% filter(id_sezione %in% (map_data %>% filter(sezione_selected) %>% pull(id_sezione) %>% unique()))
+          focus = c(lon = mean(st_coordinates(focus)[,1]), lat = mean(st_coordinates(focus)[,2]))
+          zoom = 13
+          seggio = r$gerarchia_sezioni %>% filter(id_sezione %in% sezione()) %>%
+            group_by(indirizzo, latitude, longitude) %>%
+            summarise(id_seggio = paste0(unique(id_seggio), collapse = ", "), .groups = "drop") %>%
+            mutate(label = paste0(
+                        "Seggio: <strong>", id_seggio, "</strong><br>",
+                        "Indirizzo: <strong>", indirizzo, "</strong>")) %>%
+            select(latitude, longitude, label)
+          seggio$label = seggio$label %>% lapply(htmltools::HTML)
+        }
+
       leafletProxy("map_liste") %>%
         clearControls() %>%
-        setShapeStyle(data = map_data, layerId = ~id_sezione,
-                      weight = 0.5, opacity = 1, fillOpacity = 0.5, smoothFactor = 0.1,
-                      color = ~pal(val_col), fillColor = ~pal(val_col)) %>%
+        clearGroup(group = "seggio") %>%
+        flyTo(lng = focus[[1]], lat = focus[[2]], zoom = zoom) %>%
+        setShapeStyle(data = map_data, layerId = ~id_sezione, smoothFactor = 0.1,
+                      weight = 0.5, opacity = ~highlight_col, fillOpacity = ~highlight_col,
+                      color = ~pal(val_col), fillColor = ~pal(val_col),
+                      options = list(
+                        highlight = highlightOptions(color = "white", weight = 2.5,
+                                                     bringToFront = TRUE, sendToBack = TRUE))) %>%
         setShapeLabel(data = map_data, layerId = ~id_sezione, label = ~label) %>%
         addLegendNumeric(data = map_data, pal = pal, values = ~val_col, title = title,
-                         orientation = 'horizontal', fillOpacity = .7, width = 150,
+                         orientation = 'horizontal', fillOpacity = 1, width = 150,
                          height = 20, position = 'bottomright',
-                         numberFormat = label_percent(accuracy = 1, style_positive = style_positive))
+                         numberFormat = label_percent(accuracy = 1, style_positive = style_positive)) %>%
+        {if (length(sezione())>0)
+            addMarkers(., data = seggio, lat = ~latitude, lng = ~longitude, label = ~label, icon = marker_icon,
+                       group = "seggio")
+          else .}
     }
     })
 
@@ -582,7 +742,6 @@ server = function(input, output, session) {
                 )
       )
   })
-
 }
 
 shinyApp(ui = ui, server = server)

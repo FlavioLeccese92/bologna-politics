@@ -243,14 +243,15 @@ for(i in seq_len(nrow(zone_coordinates))){
 }
 cli_progress_done()
 
-civici_sezioni = civici_sezioni %>%
+civici_sezioni =
+  civici_sezioni %>%
   select(id_civico = numprog,
          indirizzo,
          id_sezione = sez_elet,
          `Geo Point` = geo_point_2d) %>%
   distinct() %>%
   separate(`Geo Point`, c("latitude", "longitude"), ", ") %>%
-  mutate(indirizzo = indirizzo %>% gsub(",", ", ", .),
+  mutate(indirizzo = indirizzo %>% gsub(",", ", ", .) %>% gsub("\\s+", " ", .),
          latitude = latitude %>% gsub("c\\(", "", .) %>% as.numeric(),
          longitude = longitude %>% gsub("\\)", "", .)  %>% as.numeric(),
          id_sezione = id_sezione %>% as.numeric()) %>%
