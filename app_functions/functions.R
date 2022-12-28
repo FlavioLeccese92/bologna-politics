@@ -579,6 +579,7 @@ marker_icon = makeIcon(
 )
 
 #### Fix autocomplete_input ####
+
 logical_js = function(b) {
   tolower(isTRUE(b))
 }
@@ -608,12 +609,6 @@ autocomplete_input = function(
       "data-max" = max_options, "data-contains" = logical_js(contains),
       "data-hide" = logical_js(hide_values), "data-create" = logical_js(create),
       autocomplete = "off"
-    ),
-    htmltools::htmlDependency(
-      "autocomplete", "0.0.1", src = getwd(),
-      # script = "js/autocomplete-binding.js",
-      script = "app_www/autocomplete.js",
-      stylesheet = "app_www/autocomplete.css"
     )
   )
 }
