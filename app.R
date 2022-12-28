@@ -20,7 +20,7 @@ library(jsonlite)
 # library(dqshiny)
 
 
-try({dev.off()})
+# try({dev.off()})
 try({pdf(NULL)})
 
 addResourcePath("app_www", paste0(getwd(), "/app_www"))
