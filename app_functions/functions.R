@@ -610,7 +610,7 @@ autocomplete_input = function(
       autocomplete = "off"
     ),
     htmltools::htmlDependency(
-      "autocomplete", "0.0.1", c(href = ""),
+      "autocomplete", "0.0.1", src = getwd(),
       # script = "js/autocomplete-binding.js",
       script = "app_www/autocomplete.js",
       stylesheet = "app_www/autocomplete.css"
