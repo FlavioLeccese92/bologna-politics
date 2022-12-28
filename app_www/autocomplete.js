@@ -78,8 +78,7 @@ Shiny.inputBindings.register(autocompleteBinding, "shiny.autocomplete");
 
 function autocomplete(inp) {
   var currentFocus;
-
-  $(inp).on("input.autocompleteBinding", function (e) {
+  $(inp).on("focus.autocompleteBinding", function (e) {
     var $el = $(this);
     var arr = $el.data("options"),
       maxCount = $el.data("max"),
@@ -88,7 +87,57 @@ function autocomplete(inp) {
       val = this.value;
 
     closeAllLists();
-    if (!val) return false;
+    if (val) return false;
+    currentFocus = -1;
+
+    var a = document.createElement("DIV");
+    a.setAttribute("id", this.id + "autocomplete-list");
+    a.setAttribute("class", "autocomplete-items");
+    $(a).css("top", $el.offset().top + $el.outerHeight());
+    $(a).css("left", $el.offset().left);
+    $(a).width($el.innerWidth());
+    document.body.appendChild(a);
+
+    var valLen = val.length,
+      valUC = val.toUpperCase(),
+      keys = Object.keys(arr),
+      len = keys.length,
+      count = 0,
+      labeled = !arr.length;
+
+    var onClick = function (ce) {
+      $el.val($(ce.target).data("value")).trigger("change");
+    };
+
+    for (var i = 0; i < len; i++) {
+      var lab, id;
+      if (labeled) {
+        lab = keys[i];
+        id = arr[lab];
+      } else {
+        lab = id = arr[i];
+      }
+      var b = document.createElement("DIV");
+      if(lab == ''){b.style.display = 'none';}
+      b.innerHTML = lab;
+      if (labeled && !hideValues) b.innerHTML += "<small>" + id + "</small>";
+      $(b).data("value", lab);
+      $(b).on("click", onClick);
+      a.appendChild(b);
+      if (maxCount && ++count >= maxCount) break;
+    }
+  });
+
+  $(inp).on("input.autocompleteBinding", function (e) {
+    var $el = $(this);
+    var arr = $el.data("options"),
+      maxCount = $el.data("max"),
+      hideValues = $el.data("hide"),
+      contains = $el.data("contains"),
+      val = this.value;
+    closeAllLists();
+
+    // if (!val) return false;
     currentFocus = -1;
 
     var a = document.createElement("DIV");
@@ -123,11 +172,12 @@ function autocomplete(inp) {
       if (contains) pos = labUC.indexOf(valUC);
       else if (labUC.substr(0, valLen) === valUC) pos = 0;
       if (pos >= 0) {
-        if (valLen === lab.length) {
-        //closeAllLists();
-        //break;
-        }
+        // if (valLen === lab.length) {
+        // closeAllLists();
+        // break;
+        // }
         var b = document.createElement("DIV");
+        if(lab == ''){b.style.display = 'none';}
         b.innerHTML = lab.substr(0, pos);
         b.innerHTML += "<strong>" + lab.substr(pos, valLen) + "</strong>";
         b.innerHTML += lab.substr(pos + valLen);
@@ -139,6 +189,7 @@ function autocomplete(inp) {
       }
     }
   });
+
   $(inp).on("keydown.autocompleteBinding", function (e) {
     var x,
       parent = document.getElementById(this.id + "autocomplete-list");
@@ -192,4 +243,8 @@ function closeAllLists(elmnt) {
   }
 }
 
-document.addEventListener("click", closeAllLists);
+document.addEventListener("click", function(e) {
+    var isAutocomplete = $(e.target).parent().hasClass('autocomplete');
+    if(!isAutocomplete){ closeAllLists() };
+  }
+);

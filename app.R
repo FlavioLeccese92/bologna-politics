@@ -20,7 +20,7 @@ library(jsonlite)
 # library(dqshiny)
 
 
-# dev.off();
+dev.off();
 pdf(NULL)
 
 addResourcePath("app_www", paste0(getwd(), "/app_www"))
@@ -178,7 +178,7 @@ ui = fluidPage(
                                     selectizeInput("gen_level", "Livello",
                                                    c("Quartieri", "Zone", "Aree statistiche", "Indirizzi"), "Quartieri"),
                                     autocomplete_input("gen_level_value", "Valore", value = "",
-                                                       placeholder = "",
+                                                       placeholder = "Tutto",
                                                        c("", quartieri$nome_quartiere %>% sort()),
                                                        contains = TRUE,
                                                        max_options = 500)),
@@ -261,7 +261,9 @@ server = function(input, output, session) {
     r$gerarchia_indirizzi = civici_sezioni %>%
       left_join(aree_statistiche, by = "id_area_statistica") %>%
       left_join(zone, by = "id_zona") %>%
-      left_join(quartieri, by = "id_quartiere")
+      left_join(quartieri, by = "id_quartiere") %>%
+      select(id_civico, indirizzo, id_area_statistica, nome_area_statistica,
+             id_zona, nome_zona, id_quartiere, nome_quartiere, id_sezione)
 
     # waiter_hide()
     })
@@ -286,13 +288,17 @@ server = function(input, output, session) {
             if(input$gen_level == "Aree statistiche") filter(., nome_area_statistica == input$gen_level_value) else
               if(input$gen_level == "Indirizzi") filter(., indirizzo == input$gen_level_value) else .} %>%
         distinct(., id_sezione) %>% pull(id_sezione)
-    } else NULL)
+    } else {NULL})
   })
 
   ####--- gerarchia_indirizzi ---####
   gerarchia_indirizzi = reactive({
     (if(nchar(input$gen_level_value)>0){
-      r$gerarchia_indirizzi %>% filter(indirizzo == input$gen_level_value)
+      r$gerarchia_indirizzi %>%
+        {if(input$gen_level == "Quartieri") filter(., nome_quartiere == input$gen_level_value) else
+          if(input$gen_level == "Zone") filter(., nome_zona == input$gen_level_value) else
+            if(input$gen_level == "Aree statistiche") filter(., nome_area_statistica == input$gen_level_value) else
+              if(input$gen_level == "Indirizzi") filter(., indirizzo == input$gen_level_value) else .}
     } else {NULL})
   })
 
@@ -495,10 +501,12 @@ server = function(input, output, session) {
 
   ###--- pop_maschi ---###
   observe({
+
     output$pop_maschi = renderUI({
       temp = pop_z_eta_sesso_civile %>%
         filter(anno == input$gen_input_anno) %>%
-        {if(!is.null(gerarchia_indirizzi())) filter(., id_zona == gerarchia_indirizzi()$id_zona) else .}
+        {if(!is.null(gerarchia_indirizzi()))
+          filter(., id_zona %in% (gerarchia_indirizzi() %>% distinct(., id_zona) %>% pull(id_zona))) else .}
 
       plot = eta_bar_chart(temp,
                            orientation = "right", color = blue, MF = "Maschi",
@@ -518,7 +526,8 @@ server = function(input, output, session) {
     output$pop_femmine = renderUI({
       temp = pop_z_eta_sesso_civile %>%
         filter(anno == input$gen_input_anno) %>%
-        {if(!is.null(gerarchia_indirizzi())) filter(., id_zona == gerarchia_indirizzi()$id_zona) else .}
+        {if(!is.null(gerarchia_indirizzi()))
+          filter(., id_zona %in% (gerarchia_indirizzi() %>% distinct(., id_zona) %>% pull(id_zona))) else .}
 
       plot = eta_bar_chart(temp,
                            orientation = "left", color = red, MF = "Femmine",
@@ -542,14 +551,31 @@ server = function(input, output, session) {
                    slice(table_partiti_selected()) %>%
                    pull(nome_lista))) else .} %>%
         group_by(id_sezione, id_lista, sezione_selected) %>%
-        summarise(risultato = sum(voti_validi)/first(tot_voti_validi), .groups = "drop") %>%
+        summarise(voti_validi = sum(voti_validi),
+                  tot_voti_validi = first(tot_voti_validi),
+                  risultato = voti_validi/tot_voti_validi, .groups = "drop") %>%
         {if (!is.null(voti_sezioni_prev()))
           left_join(., voti_sezioni_prev() %>%
                       filter(id_lista != "-") %>%
-                      group_by(id_sezione, id_lista) %>%
-                      summarise(risultato_prev = sum(voti_validi)/first(tot_voti_validi), .groups = "drop"),
+                      group_by(id_sezione, id_lista)  %>%
+                      summarise(voti_validi_prev = sum(voti_validi),
+                                tot_voti_validi_prev = first(tot_voti_validi),
+                                risultato_prev = voti_validi_prev/tot_voti_validi_prev, .groups = "drop"),
                     by = c("id_sezione", "id_lista"))
-          else mutate(., risultato_prev = NA)} %>%
+          else mutate(., voti_validi_prev = NA, tot_voti_validi_prev = NA, risultato_prev = NA)} %>%
+        {if(input$gen_level == "Quartieri") left_join(., r$gerarchia_indirizzi %>% distinct(id_sezione, nome_quartiere) %>%
+                                                        rename(id_level = nome_quartiere), by = "id_sezione") else
+          if(input$gen_level == "Zone") left_join(., r$gerarchia_indirizzi %>% distinct(id_sezione, nome_zona) %>%
+                                                    rename(id_level = nome_zona), by = "id_sezione")  else
+            if(input$gen_level == "Aree statistiche") left_join(., r$gerarchia_indirizzi %>% distinct(id_sezione, nome_area_statistica) %>%
+                                                                  rename(id_level = nome_area_statistica), by = "id_sezione")else
+              if(input$gen_level == "Indirizzi") mutate(., id_level = id_sezione) else NULL
+        } %>%
+        {if (input$gen_level != "Indirizzi")
+          group_by(., id_level) %>%
+            mutate(risultato = sum(voti_validi)/sum(tot_voti_validi),
+                   risultato_prev = sum(voti_validi_prev)/sum(tot_voti_validi_prev)) %>%
+            ungroup() else . } %>%
         mutate(delta = risultato - risultato_prev) %>%
         left_join(sezioni_polygons, by = "id_sezione") %>%
         st_set_geometry("geometry")
@@ -561,9 +587,9 @@ server = function(input, output, session) {
 
     map = leaflet() %>%
       addProviderTiles("CartoDB.Positron",
-                       options = providerTileOptions(minZoom = 11, maxZoom = 16, className = "dark-map-tiles")) %>%
+                       options = providerTileOptions(minZoom = 10, maxZoom = 15, className = "dark-map-tiles")) %>%
       setView(lng = 11.3493292, lat = 44.492245, zoom = 12) %>%
-      setMaxBounds(lng1 = 11.22814, lat1 = 44.41880, lng2 = 11.43364, lat2 = 44.55736) %>%
+      setMaxBounds(lng1 = 11.12966 , lat1 = 44.32111 , lng2 = 11.53371 , lat2 = 44.6562) %>%
       addPolygons(data = sezioni_polygons %>% mutate(id_sezione = as.character(id_sezione)),
                   layerId = ~id_sezione,
                   weight = 0.5,
@@ -601,6 +627,7 @@ server = function(input, output, session) {
     if(all(is.na(map_data$delta)) && input$map_liste_type == "variation"){
       runjs('$("#map_liste_density_btn").click()')
     } else if(!is.null(map_data)){
+      level_text = ifelse(input$gen_level == "Indirizzi", "Sezioni", input$gen_level)
       if(input$map_liste_type == "density"){
         ris_min = ceiling(100*min(map_data$risultato))/100; ris_max = floor(100*max(map_data$risultato))/100
         title = "Risultato %"; style_positive = "none"
@@ -613,9 +640,9 @@ server = function(input, output, session) {
             "Sezione: <strong>", id_sezione, "</strong><br>",
             "Seggio: <strong>", id_seggio, "</strong><br>",
             "Indirizzo: <strong>", indirizzo, "</strong><br>",
-            "Risultato: <strong>", 100*round(risultato, 4), "%</strong>")) %>%
+            "Risultato: <strong>", 100*round(risultato, 4), "%</strong> (su ", level_text,")")) %>%
           mutate(id_sezione = as.character(id_sezione))  %>%
-          mutate(highlight_col = ifelse(sezione_selected, 0.6, 0.2))
+          mutate(highlight_col = ifelse(sezione_selected, 0.7, 0.2))
 
         }else{
           ris_max = ceiling(100*max(abs(map_data$delta)))/100; ris_min = -ris_max
@@ -630,44 +657,45 @@ server = function(input, output, session) {
               "Indirizzo: <strong>", indirizzo, "</strong><br>",
               "Risultato: <strong>", 100*round(risultato, 4), "%</strong><br>",
               "Risultato precedente: <strong>", 100*round(risultato_prev, 4), "%</strong><br>",
-              "Delta: <strong>", label_percent(accuracy = 0.01, style_positive = "plus")(delta), "%</strong>")) %>%
-            mutate(highlight_col = ifelse(sezione_selected, 0.6, 0.2))
+              "Delta: <strong>", label_percent(accuracy = 0.01, style_positive = "plus")(delta), "%</strong> (su ", level_text, ")")) %>%
+            mutate(highlight_col = ifelse(sezione_selected, 0.7, 0.2))
         }
 
       if(all(map_data$sezione_selected)){
-        focus = c(lon = 11.3493292, lat = 44.492245); zoom = 12}else{
-          focus = centroids %>% filter(id_sezione %in% (map_data %>% filter(sezione_selected) %>% pull(id_sezione) %>% unique()))
-          focus = c(lon = mean(st_coordinates(focus)[,1]), lat = mean(st_coordinates(focus)[,2]))
-          zoom = 13
-          seggio = r$gerarchia_sezioni %>% filter(id_sezione %in% sezione()) %>%
-            group_by(indirizzo, latitude, longitude) %>%
-            summarise(id_seggio = paste0(unique(id_seggio), collapse = ", "), .groups = "drop") %>%
-            mutate(label = paste0(
-                        "Seggio: <strong>", id_seggio, "</strong><br>",
-                        "Indirizzo: <strong>", indirizzo, "</strong>")) %>%
-            select(latitude, longitude, label)
-          seggio$label = seggio$label %>% lapply(htmltools::HTML)
+        focus = c(xmin = 11.22966, xmax = 11.43371, ymin = 44.42111, ymax = 44.55620)
+        }else{
+          focus = map_data %>% filter(sezione_selected) %>% st_bbox()
         }
+
+      seggio = r$gerarchia_sezioni %>%
+        {if(length(sezione()>0)) filter(., id_sezione %in% sezione()) else . } %>%
+        group_by(., indirizzo, latitude, longitude) %>%
+        summarise(id_seggio = paste0(unique(id_seggio), collapse = ", "), .groups = "drop") %>%
+        mutate(label = paste0(
+                    "Seggio: <strong>", id_seggio, "</strong><br>",
+                    "Indirizzo: <strong>", indirizzo, "</strong>")) %>%
+        select(latitude, longitude, label)
+      seggio$label = seggio$label %>% lapply(htmltools::HTML)
 
       leafletProxy("map_liste") %>%
         clearControls() %>%
-        clearGroup(group = "seggio") %>%
-        flyTo(lng = focus[[1]], lat = focus[[2]], zoom = zoom) %>%
+        clearGroup(group = "Seggio") %>%
+        flyToBounds(lng1 = focus[["xmin"]], lng2 = focus[["xmax"]], lat1 = focus[["ymin"]], lat2 = focus[["ymax"]]) %>%
         setShapeStyle(data = map_data, layerId = ~id_sezione, smoothFactor = 0.1,
                       weight = 0.5, opacity = ~highlight_col, fillOpacity = ~highlight_col,
                       color = ~pal(val_col), fillColor = ~pal(val_col),
                       options = list(
-                        highlight = highlightOptions(color = "white", weight = 2.5,
+                        highlight = highlightOptions(color = "white", weight = 2.5, opacity = 1,
                                                      bringToFront = TRUE, sendToBack = TRUE))) %>%
         setShapeLabel(data = map_data, layerId = ~id_sezione, label = ~label) %>%
         addLegendNumeric(data = map_data, pal = pal, values = ~val_col, title = title,
                          orientation = 'horizontal', fillOpacity = 1, width = 150,
                          height = 20, position = 'bottomright',
                          numberFormat = label_percent(accuracy = 1, style_positive = style_positive)) %>%
-        {if (length(sezione())>0)
-            addMarkers(., data = seggio, lat = ~latitude, lng = ~longitude, label = ~label, icon = marker_icon,
-                       group = "seggio")
-          else .}
+        addMarkers(data = seggio, lat = ~latitude, lng = ~longitude, label = ~label, icon = marker_icon,
+                   group = "Seggio") %>%
+        addLayersControl(overlayGroups = c("Seggio"), options = layersControlOptions(collapsed = TRUE)) %>%
+        {if (length(sezione())==0) hideGroup(., "Seggio") else  showGroup(., "Seggio")}
     }
     })
 

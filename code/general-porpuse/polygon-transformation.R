@@ -139,6 +139,18 @@ aree_statistiche_sf = aree_statistiche %>%
 
 saveRDS(aree_statistiche_sf, "data/polygons/aree_statistice_polygons.rds")
 
+# aree_statistiche_centroids = aree_statistiche_sf %>%
+#   group_by(id_area_statistica) %>%
+#   group_modify(~{st_bbox(.) %>% as.numeric() %>% tibble::enframe(name = "box_coords")}) %>%
+#   ungroup() %>%
+#   mutate(box_coords = case_when(box_coords == 1 ~ "xmin", box_coords == 2 ~ "ymin",
+#                                 box_coords == 3 ~ "xmax", box_coords == 4 ~ "ymax", TRUE ~ "")) %>%
+#   pivot_wider(names_from = box_coords, values_from = value) %>%
+#   mutate(xcenter = (xmin + xmax)/2, ycenter = (ymin + ymax)/2) %>%
+#   st_as_sf(coords = c("xcenter", "ycenter"))
+#
+# saveRDS(aree_statistiche_centroids, "data/polygons/aree_statistiche_centroids.rds")
+
 ### civici_sezioni_sf
 civici_sezioni_sf = civici_sezioni %>%
   distinct(id_civico, latitude, longitude) %>%

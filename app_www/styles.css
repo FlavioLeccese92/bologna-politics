@@ -776,6 +776,7 @@ p {
   z-index: 9999;
 }
 .dashboard-filters-vertical .form-group .selectize-control.single .selectize-input:not(.input-active):hover {
+  color: var(--blue);
   border: 1px solid var(--blue);
 }
 .dashboard-filters-vertical .form-group .selectize-control.single .selectize-input:not(.input-active):hover > .item {

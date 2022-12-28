@@ -33,3 +33,9 @@
   font-size: 80%;
   line-height: 1;
 }
+.autocomplete > .form-control:hover {
+  border: 1px solid var(--blue);
+}
+.autocomplete > .form-control:hover::placeholder {
+  color:  var(--blue);
+}
