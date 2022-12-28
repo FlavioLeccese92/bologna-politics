@@ -20,8 +20,8 @@ library(jsonlite)
 # library(dqshiny)
 
 
-dev.off();
-pdf(NULL)
+try({dev.off()})
+try({pdf(NULL)})
 
 addResourcePath("app_www", paste0(getwd(), "/app_www"))
 addResourcePath("data", paste0(getwd(), "/data"))
@@ -45,7 +45,6 @@ pop_z_eta_sesso_civile  = readRDS("data/general-porpuse/pop_z_eta_sesso_civile.r
 
 ### polygons ###
 sezioni_polygons = readRDS("data/polygons/sezioni_polygons.rds")
-centroids = readRDS("data/polygons/centroids.rds")
 
 ### palette ###
 red = "#ef5350"
