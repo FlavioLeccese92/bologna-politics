@@ -87,7 +87,7 @@ function autocomplete(inp) {
       val = this.value;
 
     closeAllLists();
-    if (val) return false;
+    // if (val) return false;
     currentFocus = -1;
 
     var a = document.createElement("DIV");

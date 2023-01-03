@@ -93,6 +93,57 @@ panel_ui = function(metric_name, metric, metric_type = "perc",
   )
 }
 
+### panel_ui_bar ###
+
+panel_ui_bar = function(metric_name, metric_value = NULL, riferimento,
+                        value11, value12,
+                        value21, value22,
+                        vec_src = NULL){
+
+  require(dplyr)
+  require(scales)
+  require(shiny)
+
+  if(is.numeric(value11)){
+    value1 = value12/(value11 + value12); value1_formatted = value1 %>% label_percent(accuracy  = 0.01, suffix = " %")(.)
+  }else{
+    value1 = value12; value1_formatted = value11
+  }
+  if(is.numeric(value21)){
+    value2 = value22/(value21 + value22); value2_formatted = value2 %>% label_percent(accuracy  = 0.01, suffix = " %")(.)
+  }else{
+    value2 = value22; value2_formatted = value21
+  }
+
+  if(is.null(metric_value)){metric = value1_formatted}
+  if(is.numeric(metric)){metric = metric %>% label_percent(accuracy  = 0.01, suffix = " %")(.)}
+  if(!is.null(riferimento)){div_riferimento = h5(paste0("(", riferimento, ")"))}else{div_riferimento = NULL}
+  icon = tags$svg(class = "icon", viewBox="0 0 35 35",
+                  style = "width: 100%; height: 100%; fill: #15354a",
+                  tags$use(href=vec_src))
+
+  metric_id = gsub(" ", "-", metric_name)
+  div(class = "panel panel-metric",
+      div(style = "min-height: 0px; border-radius: 6px 6px 0px 0px;
+              padding: 0.4375rem 0.9375rem; background-color: rgb(21, 53, 74); color: white;",
+          h4(metric_name)),
+      div(class = "panel-metric shiny-html-output",
+          div(style = "display: flex; flex-direction: column;",
+              tags$span(class = "metric", metric),
+              div_riferimento), icon,
+      div(class = "detail-value",
+          div(style = "margin-bottom: 5px;", progressBar(id = paste0("pb-", metric_id, "-v1"), value = value1*100, status = "success", size = "xs")),
+          div(style = "margin-bottom: 5px;", progressBar(id = paste0("pb-", metric_id, "-v2"), value = value2*100, status = "success", size = "xs")),
+          tags$style(paste0(".progress:has(#", paste0("pb-", metric_id, "-v2){height: 10px;}")))
+          ),
+      div(class = "change-value", style = "min-width: 90px;",
+          h6(style = "font-size: 11px; margin-bottom: 9px;", paste0("(filtrato) ", value1_formatted)),
+          h6(style = "font-size: 11px;", paste0("(totale) ", value2_formatted))
+          )
+      )
+  )
+}
+
 ### eta_bar_chart ###
 eta_bar_chart = function(data,
                          orientation = c("left", "right"), color = c("blue", "red"), MF = c("Maschi", "Femmine"),
@@ -570,14 +621,22 @@ femmine_svg_path = "path://M 15.75,2.00
              2.79,30.00 8.65,24.14 8.65,24.14
              8.65,24.14 8.09,24.24 8.09,24.24 Z"
 
-marker_icon = makeIcon(
+rt = 0.7
+indirizzo_icon = makeIcon(
   iconUrl = "app_www/location.svg#location",
-  iconWidth = 38, iconHeight = 95,
-  iconAnchorX = 22, iconAnchorY = 94,
-  shadowWidth = 50, shadowHeight = 64,
-  shadowAnchorX = 4, shadowAnchorY = 62
+  iconWidth = 38*rt, iconHeight = 95*rt,
+  iconAnchorX = 22*rt, iconAnchorY = 94*rt,
+  shadowWidth = 50*rt, shadowHeight = 64*rt,
+  shadowAnchorX = 4*rt, shadowAnchorY = 62*rt
 )
 
+seggio_icon = makeIcon(
+  iconUrl = "app_www/affluenza.svg#affluenza",
+  iconWidth = 38*rt, iconHeight = 95*rt,
+  iconAnchorX = 22*rt, iconAnchorY = 94*rt,
+  shadowWidth = 50*rt, shadowHeight = 64*rt,
+  shadowAnchorX = 4*rt, shadowAnchorY = 62*rt
+)
 #### Fix autocomplete_input ####
 
 logical_js = function(b) {

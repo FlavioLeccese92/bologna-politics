@@ -41,7 +41,7 @@ sezioni = readRDS("data/general-porpuse/sezioni.rds")
 civici_sezioni = readRDS("data/general-porpuse/civici_sezioni.rds")
 
 ### demographic data ###
-pop_z_eta_sesso_civile  = readRDS("data/general-porpuse/pop_z_eta_sesso_civile.rds")
+pop_as_eta_sesso_citt  = readRDS("data/general-porpuse/pop_as_eta_sesso_citt.rds")
 
 ### polygons ###
 sezioni_polygons = readRDS("data/polygons/sezioni_polygons.rds")
@@ -154,7 +154,7 @@ ui = fluidPage(
                                                   tags$use(href="app_www/icons-sprite-map.svg#shiny-logo"))),
                                   tags$span(class="dashboard-title", "Bologna Politics"))#,
                           ),
-              tags$section(class = "dashboard-panels",
+              tags$section(class = "dashboard-panels panel-150",
                            tags$div(class = "dashboard-filters-vertical",
                                              selectizeInput("gen_input_votazione", "Elezioni",
                                                             choices = list("<div> <img style = 'padding-right: 5px; padding-bottom: 2px;' src='app_www/bandiera-comune-bologna.png' width=30px>Comunali</img></div>" = "comunali",
@@ -169,29 +169,31 @@ ui = fluidPage(
                                              ),
                                              selectizeInput("gen_input_anno", "Anno", "2022"),
                                              selectizeInput("gen_input_organo", "Organo", "camera")
-                           ),
+                                    ),
                            uiOutput("sum_affluenza"),
                            uiOutput("sum_partito"),
                            uiOutput("sum_coalizione")
                            ),
-              tags$section(class = "dashboard-panels",
+              tags$section(class = "dashboard-panels panel-150",
                            tags$div(class = "dashboard-filters-vertical",
                                     selectizeInput("gen_level", "Livello",
                                                    c("Quartieri", "Zone", "Aree statistiche", "Indirizzi"), "Quartieri"),
                                     autocomplete_input("gen_level_value", "Valore", value = "",
-                                                       placeholder = "Tutto",
+                                                       placeholder = "Tutto (6 valori)",
                                                        c("", quartieri$nome_quartiere %>% sort()),
                                                        contains = TRUE,
                                                        max_options = 500)),
-                           div(), div(), div()),
+                           uiOutput("pop_genere"),
+                           uiOutput("pop_cittadinanza"),
+                           uiOutput("pop_eta_mediana")),
               tags$section(class = "dashboard-panels-2col",
-                           reactableOutput("table_partiti"),
-                           leafletOutput("map_liste")
-                           ),
-              tags$section(class = "dashboard-panels panel-300",
-                           uiOutput("pop_maschi"),
-                           uiOutput("pop_femmine")
-              )
+                           reactableOutput("table_partiti"), tags$style("#table_partiti{border-radius: 6px; box-shadow: 0 2px 8px -2px rgb(82 82 82 / 40%);}"),
+                           leafletOutput("map_liste", height = "100%"), tags$style("#map_liste{border-radius: 6px; box-shadow: 0 2px 8px -2px rgb(82 82 82 / 40%);}")
+                           )# ,
+              # tags$section(class = "dashboard-panels panel-300",
+              #              uiOutput("pop_maschi"),
+              #              uiOutput("pop_femmine")
+              # )
 
     )
 )
@@ -264,7 +266,8 @@ server = function(input, output, session) {
       left_join(zone, by = "id_zona") %>%
       left_join(quartieri, by = "id_quartiere") %>%
       select(id_civico, indirizzo, id_area_statistica, nome_area_statistica,
-             id_zona, nome_zona, id_quartiere, nome_quartiere, id_sezione)
+             id_zona, nome_zona, id_quartiere, nome_quartiere, id_sezione,
+             latitude, longitude)
 
     # waiter_hide()
     })
@@ -277,7 +280,8 @@ server = function(input, output, session) {
           if(input$gen_level == "Aree statistiche") distinct(., nome_area_statistica) %>% pull() %>% na.omit() %>% c("", .) else
             if(input$gen_level == "Indirizzi") distinct(., indirizzo) %>% pull() %>% na.omit() %>% c("", .) else NULL
       }
-    update_autocomplete_input(session = session, id = "gen_level_value", label = "Valore", options = options, value = "")
+    update_autocomplete_input(session = session, id = "gen_level_value", label = "Valore", options = options, value = "",
+                              placeholder = paste0("Tutto (", length(options)-1," valori)"))
   })
 
   ####--- Sezione ---####
@@ -500,48 +504,113 @@ server = function(input, output, session) {
 
   #### Statistiche ####
 
-  ###--- pop_maschi ---###
+  ###--- pop_genere ---###
   observe({
+    output$pop_genere = renderUI({
+        temp = pop_as_eta_sesso_citt %>% filter(anno == 2021) %>%
+          { if(!is.null(gerarchia_indirizzi()))
+            { if (nrow(gerarchia_indirizzi())==0) mutate(., selected = TRUE)
+              else
+              left_join(., gerarchia_indirizzi() %>%
+                          distinct(id_area_statistica) %>%
+                          mutate(selected = TRUE), by = "id_area_statistica") %>%
+                mutate(selected = !is.na(selected)) }
+            else mutate(.,selected = TRUE) } %>%
+          summarise(m_zona = ifelse(selected & sesso == "Maschi", residenti, 0) %>% sum(),
+                    f_zona = ifelse(selected & sesso == "Femmine", residenti, 0) %>% sum(),
+                    m_tot = ifelse(sesso == "Maschi", residenti, 0) %>% sum(),
+                    f_tot = ifelse(sesso == "Femmine", residenti, 0) %>% sum())
 
-    output$pop_maschi = renderUI({
-      temp = pop_z_eta_sesso_civile %>%
-        filter(anno == input$gen_input_anno) %>%
-        {if(!is.null(gerarchia_indirizzi()))
-          filter(., id_zona %in% (gerarchia_indirizzi() %>% distinct(., id_zona) %>% pull(id_zona))) else .}
+        panel_ui_bar("Genere", "Femmine - area statistica", metric_value = NULL,
+                     temp$m_zona, temp$f_zona, temp$m_tot, temp$f_tot, vec_src = "app_www/genere.svg#genere")
+    })
+  })
+  ###--- pop_cittadinanza ---###
+  observe({
+    output$pop_cittadinanza = renderUI({
+      temp = pop_as_eta_sesso_citt %>% filter(anno == 2021) %>%
+        { if(!is.null(gerarchia_indirizzi()))
+        { if (nrow(gerarchia_indirizzi())==0) mutate(., selected = TRUE)
+          else
+            left_join(., gerarchia_indirizzi() %>%
+                        distinct(id_area_statistica) %>%
+                        mutate(selected = TRUE), by = "id_area_statistica") %>%
+            mutate(selected = !is.na(selected)) }
+          else mutate(.,selected = TRUE) } %>%
+        summarise(i_zona = ifelse(selected & cittadinanza == "Italiana", residenti, 0) %>% sum(),
+                  s_zona = ifelse(selected & cittadinanza == "Straniera", residenti, 0) %>% sum(),
+                  i_tot = ifelse(cittadinanza == "Italiana", residenti, 0) %>% sum(),
+                  s_tot = ifelse(cittadinanza == "Straniera", residenti, 0) %>% sum())
 
-      plot = eta_bar_chart(temp,
-                           orientation = "right", color = blue, MF = "Maschi",
-                           height = "268px")
-
-      div(class = "panel panel-metric", #style = "height: 300px;",
-          div(style = "height: 32px; min-height: 0px; border-radius: 6px 6px 0px 0px;
-                  padding: 0.4375rem 0.9375rem; background-color: rgb(21, 53, 74); color: white;",
-              h4("Età maschi")),
-          plot
-      )
+      panel_ui_bar("Cittadinanza", "Stranieri - area statistica", metric_value = NULL,
+                   temp$i_zona, temp$s_zona, temp$i_tot, temp$s_tot, vec_src = "app_www/cittadinanza.svg#cittadinanza")
     })
   })
 
-  ###--- pop_femmine ---###
+  ###--- pop_eta_mediana ---###
   observe({
-    output$pop_femmine = renderUI({
-      temp = pop_z_eta_sesso_civile %>%
-        filter(anno == input$gen_input_anno) %>%
-        {if(!is.null(gerarchia_indirizzi()))
-          filter(., id_zona %in% (gerarchia_indirizzi() %>% distinct(., id_zona) %>% pull(id_zona))) else .}
+    output$pop_eta_mediana = renderUI({
+      levels = sort(unique(pop_as_eta_sesso_citt$eta_grandi))
+      temp = pop_as_eta_sesso_citt %>% filter(anno == 2021) %>%
+        { if(!is.null(gerarchia_indirizzi()))
+        { if (nrow(gerarchia_indirizzi())==0) mutate(., selected = TRUE)
+          else
+            left_join(., gerarchia_indirizzi() %>%
+                        distinct(id_area_statistica) %>%
+                        mutate(selected = TRUE), by = "id_area_statistica") %>%
+            mutate(selected = !is.na(selected)) }
+          else mutate(., selected = TRUE) }
 
-      plot = eta_bar_chart(temp,
-                           orientation = "left", color = red, MF = "Femmine",
-                           height = "268px")
+      m_zona = temp %>% filter(selected) %>% summarise(m_zona = median(rep(eta_grandi_factor, residenti))) %>% pull(m_zona)
+      m_tot = temp %>% summarise(m_tot = median(rep(eta_grandi_factor, residenti))) %>% pull(m_tot)
 
-      div(class = "panel panel-metric", #style = "height: 300px;",
-          div(style = "height: 32px; min-height: 0px; border-radius: 6px 6px 0px 0px;
-                padding: 0.4375rem 0.9375rem; background-color: rgb(21, 53, 74); color: white;",
-              h4("Età femmine")),
-          plot
-      )
+      value11 = levels[m_zona]; value12 = m_zona/length(levels)
+      value21 = levels[m_tot]; value22 = m_tot/length(levels)
+      panel_ui_bar("Età mediana", NULL, "area statistica", value11, value12, value21, value22, vec_src = "app_www/eta.svg#eta")
     })
   })
+#   ###--- pop_maschi ---###
+#   observe({
+#
+#     output$pop_maschi = renderUI({
+#       temp = pop_z_eta_sesso_civile %>%
+#         filter(anno == input$gen_input_anno) %>%
+#         {if(!is.null(gerarchia_indirizzi()))
+#           filter(., id_zona %in% (gerarchia_indirizzi() %>% distinct(., id_zona) %>% pull(id_zona))) else .}
+#
+#       plot = eta_bar_chart(temp,
+#                            orientation = "right", color = blue, MF = "Maschi",
+#                            height = "268px")
+#
+#       div(class = "panel panel-metric", #style = "height: 300px;",
+#           div(style = "height: 32px; min-height: 0px; border-radius: 6px 6px 0px 0px;
+#                   padding: 0.4375rem 0.9375rem; background-color: rgb(21, 53, 74); color: white;",
+#               h4("Età maschi")),
+#           plot
+#       )
+#     })
+#   })
+#
+#   ###--- pop_femmine ---###
+#   observe({
+#     output$pop_femmine = renderUI({
+#       temp = pop_z_eta_sesso_civile %>%
+#         filter(anno == input$gen_input_anno) %>%
+#         {if(!is.null(gerarchia_indirizzi()))
+#           filter(., id_zona %in% (gerarchia_indirizzi() %>% distinct(., id_zona) %>% pull(id_zona))) else .}
+#
+#       plot = eta_bar_chart(temp,
+#                            orientation = "left", color = red, MF = "Femmine",
+#                            height = "268px")
+#
+#       div(class = "panel panel-metric", #style = "height: 300px;",
+#           div(style = "height: 32px; min-height: 0px; border-radius: 6px 6px 0px 0px;
+#                 padding: 0.4375rem 0.9375rem; background-color: rgb(21, 53, 74); color: white;",
+#               h4("Età femmine")),
+#           plot
+#       )
+#     })
+#   })
 
   ####--- map partiti sezioni ---####
   voti_sezioni_map = reactive({
@@ -584,7 +653,6 @@ server = function(input, output, session) {
   })
 
   output$map_liste = renderLeaflet({
-    # waiter_show(html = div(class = "loading", tags$i(), tags$i(), tags$i(), tags$i()))
 
     map = leaflet() %>%
       addProviderTiles("CartoDB.Positron",
@@ -614,7 +682,6 @@ server = function(input, output, session) {
                           tags$use(href="app_www/variation.svg#variation")),
           onClick = JS(easy_button_js)))
 
-    # waiter_hide()
     map
   })
 
@@ -636,11 +703,10 @@ server = function(input, output, session) {
 
         map_data = map_data %>%
           mutate(val_col = risultato %>% ifelse(. <= ris_min, ris_min, .) %>% ifelse(. >= ris_max, ris_max, .)) %>%
-          left_join(r$gerarchia_sezioni %>% distinct(id_sezione, id_seggio, indirizzo), by = "id_sezione") %>%
+          left_join(r$gerarchia_sezioni %>% distinct(id_sezione, id_seggio), by = "id_sezione") %>%
           mutate(label = paste0(
             "Sezione: <strong>", id_sezione, "</strong><br>",
             "Seggio: <strong>", id_seggio, "</strong><br>",
-            "Indirizzo: <strong>", indirizzo, "</strong><br>",
             "Risultato: <strong>", 100*round(risultato, 4), "%</strong> (su ", level_text,")")) %>%
           mutate(id_sezione = as.character(id_sezione))  %>%
           mutate(highlight_col = ifelse(sezione_selected, 0.7, 0.2))
@@ -651,11 +717,10 @@ server = function(input, output, session) {
           pal = colorNumeric(c(red, red, yellow, green, green), c(ris_min, ris_max))
           map_data = map_data %>%
             mutate(val_col = delta %>% ifelse(. <= ris_min, ris_min, .) %>% ifelse(. >= ris_max, ris_max, .)) %>%
-            left_join(r$gerarchia_sezioni %>% distinct(id_sezione, id_seggio, indirizzo), by = "id_sezione") %>%
+            left_join(r$gerarchia_sezioni %>% distinct(id_sezione, id_seggio), by = "id_sezione") %>%
             mutate(label = paste0(
               "Sezione: <strong>", id_sezione, "</strong><br>",
               "Seggio: <strong>", id_seggio, "</strong><br>",
-              "Indirizzo: <strong>", indirizzo, "</strong><br>",
               "Risultato: <strong>", 100*round(risultato, 4), "%</strong><br>",
               "Risultato precedente: <strong>", 100*round(risultato_prev, 4), "%</strong><br>",
               "Delta: <strong>", label_percent(accuracy = 0.01, style_positive = "plus")(delta), "%</strong> (su ", level_text, ")")) %>%
@@ -664,10 +729,15 @@ server = function(input, output, session) {
 
       if(all(map_data$sezione_selected)){
         focus = c(xmin = 11.22966, xmax = 11.43371, ymin = 44.42111, ymax = 44.55620)
-        }else{
-          focus = map_data %>% filter(sezione_selected) %>% st_bbox()
-        }
+        }else{focus = map_data %>% filter(sezione_selected) %>% st_bbox()}
 
+      if(!is.null(gerarchia_indirizzi())){
+        if(nrow(gerarchia_indirizzi())==1){
+          indirizzo = gerarchia_indirizzi() %>% select(indirizzo, latitude, longitude) %>%
+            mutate(label = paste0("Indirizzo: <strong>", indirizzo, "</strong>"))
+          indirizzo$label = indirizzo$label %>% lapply(htmltools::HTML)
+        }
+      }
       seggio = r$gerarchia_sezioni %>%
         {if(length(sezione()>0)) filter(., id_sezione %in% sezione()) else . } %>%
         group_by(., indirizzo, latitude, longitude) %>%
@@ -681,6 +751,7 @@ server = function(input, output, session) {
       leafletProxy("map_liste") %>%
         clearControls() %>%
         clearGroup(group = "Seggio") %>%
+        clearGroup(group = "Indirizzo") %>%
         flyToBounds(lng1 = focus[["xmin"]], lng2 = focus[["xmax"]], lat1 = focus[["ymin"]], lat2 = focus[["ymax"]]) %>%
         setShapeStyle(data = map_data, layerId = ~id_sezione, smoothFactor = 0.1,
                       weight = 0.5, opacity = ~highlight_col, fillOpacity = ~highlight_col,
@@ -693,10 +764,14 @@ server = function(input, output, session) {
                          orientation = 'horizontal', fillOpacity = 1, width = 150,
                          height = 20, position = 'bottomright',
                          numberFormat = label_percent(accuracy = 1, style_positive = style_positive)) %>%
-        addMarkers(data = seggio, lat = ~latitude, lng = ~longitude, label = ~label, icon = marker_icon,
+        addMarkers(data = seggio, lat = ~latitude, lng = ~longitude, label = ~label, icon = seggio_icon,
                    group = "Seggio") %>%
         addLayersControl(overlayGroups = c("Seggio"), options = layersControlOptions(collapsed = TRUE)) %>%
-        {if (length(sezione())==0) hideGroup(., "Seggio") else  showGroup(., "Seggio")}
+        {if (length(sezione())==0) hideGroup(., "Seggio") else  showGroup(., "Seggio")} %>%
+        {if (!is.null(gerarchia_indirizzi()))
+        {if (nrow(gerarchia_indirizzi())==1) addMarkers(., data = indirizzo, lat = ~latitude, lng = ~longitude,
+                                                           label = ~label, icon = indirizzo_icon, group = "Indirizzo")}
+          }
     }
     })
 

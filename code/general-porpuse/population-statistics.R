@@ -24,11 +24,11 @@ aree_statistiche = readRDS("data/general-porpuse/aree_statistiche.rds")
 
 #### popolazione_residente per area statistica ####
 
-pop_as_eta_sesso = NULL
+pop_as_eta_sesso_citt = NULL
 
 cli_progress_bar(
   total = length(2010:2021),
-  format = "Downloading pop_as_eta_sesso {i}/{length(2010:2021)} {pb_bar} {pb_percent} [{pb_elapsed_clock}]"
+  format = "Downloading pop_as_eta_sesso_citt {i}/{length(2010:2021)} {pb_bar} {pb_percent} [{pb_elapsed_clock}]"
 )
 for(i in seq_along(2010:2021)){
   cli_progress_update(set = i)
@@ -44,17 +44,21 @@ for(i in seq_along(2010:2021)){
     x = jsonlite::fromJSON(httr::content(res, 'text', encoding = "UTF-8"))
     x = x[["records"]][["fields"]] %>% as_tibble()
     x = remove_rownames(x)
-    pop_as_eta_sesso = bind_rows(pop_as_eta_sesso, x)
+    pop_as_eta_sesso_citt = bind_rows(pop_as_eta_sesso_citt, x)
   }
 }
 cli_progress_done(); rm(i, anno, j, quartiere, res, x)
 
-pop_as_eta_sesso =
-  pop_as_eta_sesso %>%
+pop_as_eta_sesso_citt =
+  pop_as_eta_sesso_citt %>%
   mutate(id_area_statistica = as.numeric(codice_area_statistica), .keep = "unused") %>%
-  select(id_area_statistica, anno, eta_grandi, eta, sesso, residenti)
+  select(id_area_statistica, anno, eta_grandi, eta, sesso, cittadinanza, residenti) %>%
+  mutate(eta_grandi_factor = factor(eta_grandi, levels = sort(unique(pop_as_eta_sesso_citt$eta_grandi))))
 
-saveRDS(pop_as_eta_sesso, "data/general-porpuse/pop_as_eta_sesso.rds")
+pop_as_eta_sesso_citt = pop_as_eta_sesso_citt  %>%
+  mutate(eta_grandi_factor = as.numeric(factor(eta_grandi, levels = sort(unique(pop_as_eta_sesso_citt$eta_grandi)))))
+
+saveRDS(pop_as_eta_sesso_citt, "data/general-porpuse/pop_as_eta_sesso_citt.rds")
 
 #### popolazione_residente per zona ####
 

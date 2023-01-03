@@ -24,7 +24,7 @@
   background-color: #ffc233;
 }
 .autocomplete-active {
-  background-color: #ff8f00 !important;
+  background-color: var(--darkblue)!important;
   color: #ffffff;
 }
 .autocomplete-items small {
@@ -32,6 +32,13 @@
   display: block;
   font-size: 80%;
   line-height: 1;
+}
+.autocomplete-active {
+    background-color: var(--dark-blue)!important;
+}
+.autocomplete-items div:hover {
+    background-color: var(--dark-blue)!important;
+    color: white;
 }
 .autocomplete > .form-control:hover {
   border: 1px solid var(--blue);

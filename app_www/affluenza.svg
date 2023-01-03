@@ -1,8 +1,8 @@
 <svg version="1.1" id="affluenza" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
 	 viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
 <style type="text/css">
-	.hatch_een{fill:#265AA5;}
-	.hatch_twee{fill:#FFC5BB;}
+	.hatch_een{fill:#525252;}
+	.hatch_twee{fill:white;}
 </style>
 <g>
 	<path class="hatch_twee" d="M2,29.158v-1.414L8.744,21h1.414L2,29.158z M19.157,24l3-3h-1.414l-3,3H19.157z M28.157,15h-1.414l-5,5
