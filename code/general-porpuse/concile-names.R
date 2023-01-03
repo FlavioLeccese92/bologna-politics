@@ -173,9 +173,13 @@ for(i in seq_len(nrow(tree_table))){
   }
 
   contrassegni = temp_contrassegni %>%
-    mutate(key = tree_table$key[i], organo = tree_table$organo[i], .before = 1) %>%
+    mutate(key = tree_table$key[i], organo = tree_table$organo[i], .before = 1,
+           nome_lista_eligendo) %>%
     bind_rows(contrassegni, .)
 }
+
+### verificare nome
+contrassegni = contrassegni %>% mutate(nome_lista_eligendo = trimws(nome_lista_eligendo))
 
 ### Needed to merge camera06 and camera07 ###
 

@@ -117,7 +117,7 @@ panel_ui_bar = function(metric_name, metric_value = NULL, riferimento,
 
   if(is.null(metric_value)){metric = value1_formatted}
   if(is.numeric(metric)){metric = metric %>% label_percent(accuracy  = 0.01, suffix = " %")(.)}
-  if(!is.null(riferimento)){div_riferimento = h5(paste0("(", riferimento, ")"))}else{div_riferimento = NULL}
+  if(!is.null(riferimento)){div_riferimento = h6(paste0("(", riferimento, ")"))}else{div_riferimento = NULL}
   icon = tags$svg(class = "icon", viewBox="0 0 35 35",
                   style = "width: 100%; height: 100%; fill: #15354a",
                   tags$use(href=vec_src))

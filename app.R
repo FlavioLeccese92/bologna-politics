@@ -507,7 +507,11 @@ server = function(input, output, session) {
   ###--- pop_genere ---###
   observe({
     output$pop_genere = renderUI({
-        temp = pop_as_eta_sesso_citt %>% filter(anno == 2021) %>%
+      levels = sort(unique(pop_as_eta_sesso_citt$eta_grandi))
+      diff.year = as.numeric(input$gen_input_anno) - as.numeric(unique(pop_as_eta_sesso_citt$anno))
+      year = as.numeric(unique(pop_as_eta_sesso_citt$anno))[which.min(diff.year)]
+
+        temp = pop_as_eta_sesso_citt %>% filter(anno == year) %>%
           { if(!is.null(gerarchia_indirizzi()))
             { if (nrow(gerarchia_indirizzi())==0) mutate(., selected = TRUE)
               else
@@ -521,14 +525,20 @@ server = function(input, output, session) {
                     m_tot = ifelse(sesso == "Maschi", residenti, 0) %>% sum(),
                     f_tot = ifelse(sesso == "Femmine", residenti, 0) %>% sum())
 
-        panel_ui_bar("Genere", "Femmine - area statistica", metric_value = NULL,
+        riferimento = "Femmine - area statistica"; if(min(diff.year)>0){riferimento = paste0(riferimento, " ", year, "")}
+
+        panel_ui_bar("Genere", riferimento, metric_value = NULL,
                      temp$m_zona, temp$f_zona, temp$m_tot, temp$f_tot, vec_src = "app_www/genere.svg#genere")
     })
   })
   ###--- pop_cittadinanza ---###
   observe({
     output$pop_cittadinanza = renderUI({
-      temp = pop_as_eta_sesso_citt %>% filter(anno == 2021) %>%
+      levels = sort(unique(pop_as_eta_sesso_citt$eta_grandi))
+      diff.year = as.numeric(input$gen_input_anno) - as.numeric(unique(pop_as_eta_sesso_citt$anno))
+      year = as.numeric(unique(pop_as_eta_sesso_citt$anno))[which.min(diff.year)]
+
+      temp = pop_as_eta_sesso_citt %>% filter(anno == year) %>%
         { if(!is.null(gerarchia_indirizzi()))
         { if (nrow(gerarchia_indirizzi())==0) mutate(., selected = TRUE)
           else
@@ -542,7 +552,9 @@ server = function(input, output, session) {
                   i_tot = ifelse(cittadinanza == "Italiana", residenti, 0) %>% sum(),
                   s_tot = ifelse(cittadinanza == "Straniera", residenti, 0) %>% sum())
 
-      panel_ui_bar("Cittadinanza", "Stranieri - area statistica", metric_value = NULL,
+      riferimento = "Stranieri - area statistica"; if(min(diff.year)>0){riferimento = paste0(riferimento, " ", year, "")}
+
+      panel_ui_bar("Cittadinanza", riferimento, metric_value = NULL,
                    temp$i_zona, temp$s_zona, temp$i_tot, temp$s_tot, vec_src = "app_www/cittadinanza.svg#cittadinanza")
     })
   })
@@ -551,7 +563,10 @@ server = function(input, output, session) {
   observe({
     output$pop_eta_mediana = renderUI({
       levels = sort(unique(pop_as_eta_sesso_citt$eta_grandi))
-      temp = pop_as_eta_sesso_citt %>% filter(anno == 2021) %>%
+      diff.year = as.numeric(input$gen_input_anno) - as.numeric(unique(pop_as_eta_sesso_citt$anno))
+      year = as.numeric(unique(pop_as_eta_sesso_citt$anno))[which.min(diff.year)]
+
+      temp = pop_as_eta_sesso_citt %>% filter(anno == year) %>%
         { if(!is.null(gerarchia_indirizzi()))
         { if (nrow(gerarchia_indirizzi())==0) mutate(., selected = TRUE)
           else
@@ -566,7 +581,8 @@ server = function(input, output, session) {
 
       value11 = levels[m_zona]; value12 = m_zona/length(levels)
       value21 = levels[m_tot]; value22 = m_tot/length(levels)
-      panel_ui_bar("Età mediana", NULL, "area statistica", value11, value12, value21, value22, vec_src = "app_www/eta.svg#eta")
+      riferimento = "area statistica"; if(min(diff.year)>0){riferimento = paste0(riferimento, " ", year, "")}
+      panel_ui_bar("Età mediana", NULL, riferimento, value11, value12, value21, value22, vec_src = "app_www/eta.svg#eta")
     })
   })
 #   ###--- pop_maschi ---###
