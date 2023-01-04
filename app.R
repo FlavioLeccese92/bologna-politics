@@ -650,13 +650,20 @@ server = function(input, output, session) {
                     by = c("id_sezione", "id_lista"))
           else mutate(., voti_validi_prev = NA, tot_voti_validi_prev = NA, risultato_prev = NA)} %>%
         {if(input$gen_level == "Quartieri") left_join(., r$gerarchia_indirizzi %>% distinct(id_sezione, nome_quartiere) %>%
-                                                        rename(id_level = nome_quartiere), by = "id_sezione") else
+                                                        rename(id_level = nome_quartiere) %>%
+                                                        mutate(level_selected = id_level == input$gen_level_value), by = "id_sezione") else
           if(input$gen_level == "Zone") left_join(., r$gerarchia_indirizzi %>% distinct(id_sezione, nome_zona) %>%
-                                                    rename(id_level = nome_zona), by = "id_sezione")  else
+                                                    rename(id_level = nome_zona) %>%
+                                                    mutate(level_selected = id_level == input$gen_level_value), by = "id_sezione")  else
             if(input$gen_level == "Aree statistiche") left_join(., r$gerarchia_indirizzi %>% distinct(id_sezione, nome_area_statistica) %>%
-                                                                  rename(id_level = nome_area_statistica), by = "id_sezione")else
-              if(input$gen_level == "Indirizzi") mutate(., id_level = id_sezione) else NULL
+                                                                  rename(id_level = nome_area_statistica) %>%
+                                                                  mutate(level_selected = id_level == input$gen_level_value), by = "id_sezione")else
+              if(input$gen_level == "Indirizzi") mutate(., id_level = id_sezione) %>%
+            mutate(level_selected = id_level %in% sezione()) else NULL
         } %>%
+        group_by(id_sezione, id_lista) %>%
+        mutate(n_id_level = n_distinct(id_level)) %>% ungroup() %>%
+        mutate(id_level = ifelse(n_id_level>1, id_sezione, id_level)) %>%
         {if (input$gen_level != "Indirizzi")
           group_by(., id_level) %>%
             mutate(risultato = sum(voti_validi)/sum(tot_voti_validi),
