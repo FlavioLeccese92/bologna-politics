@@ -22,6 +22,51 @@ civici_sezioni = readRDS("data/general-porpuse/civici_sezioni.rds")
 
 aree_stradali = readRDS("data/general-porpuse/aree_stradali.rds")
 
+
+
+### quartieri_sf ###
+quartieri_sf =
+  quartieri %>%
+  unnest(coordinates) %>%
+  group_by(id_quartiere) %>%
+  mutate(longitude = coordinates %>% .[[1]] %>% .[1,,1] %>% list(),
+         latitude = coordinates %>% .[[1]] %>% .[1,,2] %>% list())  %>%
+  unnest(c(latitude, longitude)) %>%
+  select(id_quartiere, longitude, latitude) %>%
+  st_as_sf(., coords = c("longitude", "latitude")) %>%
+  summarise(geometry = st_combine(geometry), .groups = "drop") %>%
+  st_cast("POLYGON")
+
+saveRDS(quartieri_sf, "data/polygons/quartieri_polygons.rds")
+
+### zone_sf ###
+zone_sf = zone %>%
+  group_by(id_zona) %>%
+  unnest(coordinates) %>%
+  mutate(longitude = coordinates %>% .[[1]] %>% .[1,1,,1] %>% list(),
+         latitude = coordinates %>% .[[1]] %>% .[1,1,,2] %>% list()) %>%
+  unnest(c(latitude, longitude)) %>%
+  select(id_zona, longitude, latitude) %>%
+  st_as_sf(., coords = c("longitude", "latitude")) %>%
+  summarise(geometry = st_combine(geometry), .groups = "drop") %>%
+  st_cast("POLYGON")
+
+saveRDS(zone_sf, "data/polygons/zone_polygons.rds")
+
+### aree_statistiche_sf ###
+aree_statistiche_sf = aree_statistiche %>%
+  group_by(id_area_statistica) %>%
+  unnest(coordinates) %>%
+  mutate(longitude = coordinates %>% .[[1]] %>% .[1,1,,1] %>% list(),
+         latitude = coordinates %>% .[[1]] %>% .[1,1,,2] %>% list()) %>%
+  unnest(c(latitude, longitude)) %>%
+  select(id_area_statistica, longitude, latitude) %>%
+  st_as_sf(., coords = c("longitude", "latitude")) %>%
+  summarise(geometry = st_combine(geometry), .groups = "drop") %>%
+  st_cast("POLYGON")
+
+saveRDS(aree_statistiche_sf, "data/polygons/aree_statistice_polygons.rds")
+
 ### aree_stradali_polygons ###
 aree_stradali_polygons = NULL
 
@@ -92,52 +137,98 @@ for(i in seq_len(nrow(aree_stradali))){
     bind_rows(aree_stradali_polygons,
               inner_temp)
 }
-cli_progress_done()
+  cli_progress_done()
 
 saveRDS(aree_stradali_polygons, "data/polygons/aree_stradali_polygons.rds")
 
-### quartieri_sf ###
-quartieri_sf =
-  quartieri %>%
-  unnest(coordinates) %>%
-  group_by(id_quartiere) %>%
-  mutate(longitude = coordinates %>% .[[1]] %>% .[1,,1] %>% list(),
-         latitude = coordinates %>% .[[1]] %>% .[1,,2] %>% list())  %>%
-  unnest(c(latitude, longitude)) %>%
-  select(id_quartiere, longitude, latitude) %>%
-  st_as_sf(., coords = c("longitude", "latitude")) %>%
-  summarise(geometry = st_combine(geometry), .groups = "drop") %>%
-  st_cast("POLYGON")
 
-saveRDS(quartieri_sf, "data/polygons/quartieri_polygons.rds")
+### cigli_stradali_polygons ###
+cigli_stradali_polygons = NULL
 
-### zone_sf ###
-zone_sf = zone %>%
-  group_by(id_zona) %>%
-  unnest(coordinates) %>%
-  mutate(longitude = coordinates %>% .[[1]] %>% .[1,1,,1] %>% list(),
-         latitude = coordinates %>% .[[1]] %>% .[1,1,,2] %>% list()) %>%
-  unnest(c(latitude, longitude)) %>%
-  select(id_zona, longitude, latitude) %>%
-  st_as_sf(., coords = c("longitude", "latitude")) %>%
-  summarise(geometry = st_combine(geometry), .groups = "drop") %>%
-  st_cast("POLYGON")
+options(cli.progress_bar_style = "fillsquares")
+cli_progress_bar(
+  total = nrow(cigli_stradali),
+  format = "Converting to MULTIPOLYGON {i}/{nrow(cigli_stradali)} {pb_bar} {pb_percent}"
+)
 
-saveRDS(zone_sf, "data/polygons/zone_polygons.rds")
+for(i in seq_len(nrow(cigli_stradali))){
+  codice_ogg = cigli_stradali[i, ]$codice_ogg
 
-### aree_statistiche_sf ###
-aree_statistiche_sf = aree_statistiche %>%
-  group_by(id_area_statistica) %>%
-  unnest(coordinates) %>%
-  mutate(longitude = coordinates %>% .[[1]] %>% .[1,1,,1] %>% list(),
-         latitude = coordinates %>% .[[1]] %>% .[1,1,,2] %>% list()) %>%
-  unnest(c(latitude, longitude)) %>%
-  select(id_area_statistica, longitude, latitude) %>%
-  st_as_sf(., coords = c("longitude", "latitude")) %>%
-  summarise(geometry = st_combine(geometry), .groups = "drop") %>%
-  st_cast("POLYGON")
+  cli_progress_update(set = i)
 
-saveRDS(aree_statistiche_sf, "data/polygons/aree_statistice_polygons.rds")
+  n_polygons = vec_depth(cigli_stradali[i, ]$geo_shape$coordinates[[1]])
+
+  inner_temp = NULL
+  if(n_polygons == 1){
+    subpolygons = dim(cigli_stradali[i, ]$geo_shape$coordinates[[1]][,,1])
+    if(is.null(subpolygons)){
+      inner_temp =
+        tibble(
+          codice_ogg = cigli_stradali[i, ]$codice_ogg,
+          subcodice_ogg = 1,
+          longitude = cigli_stradali[i, ]$geo_shape$coordinates[[1]][,,1],
+          latitude = cigli_stradali[i, ]$geo_shape$coordinates[[1]][,,2]) %>%
+        st_as_sf(., coords = c("longitude", "latitude")) %>%
+        group_by(codice_ogg, subcodice_ogg) %>%
+        summarise(geometry = st_combine(geometry), .groups = "drop") %>%
+        st_cast("POLYGON")
+    }else{
+      for(j in seq_len(subpolygons[1])){
+        inner_temp =
+          tibble(
+            codice_ogg = cigli_stradali[i, ]$codice_ogg,
+            subcodice_ogg = j,
+            longitude = cigli_stradali[i, ]$geo_shape$coordinates[[1]][,,1][j,],
+            latitude = cigli_stradali[i, ]$geo_shape$coordinates[[1]][,,2][j,]) %>%
+          st_as_sf(., coords = c("longitude", "latitude")) %>%
+          group_by(codice_ogg, subcodice_ogg) %>%
+          summarise(geometry = st_combine(geometry), .groups = "drop") %>%
+          st_cast("POLYGON") %>%
+          bind_rows(inner_temp, .)
+      }
+    }
+  }else{
+    for(j in seq_len(n_polygons)){
+      inner_temp =
+        tibble(
+          codice_ogg = cigli_stradali[i, ]$codice_ogg,
+          subcodice_ogg = j,
+          longitude = cigli_stradali[i, ]$geo_shape$coordinates[[1]][[j]][,1],
+          latitude = cigli_stradali[i, ]$geo_shape$coordinates[[1]][[j]][,2])%>%
+        st_as_sf(., coords = c("longitude", "latitude")) %>%
+        group_by(codice_ogg, subcodice_ogg) %>%
+        summarise(geometry = st_combine(geometry), .groups = "drop") %>%
+        st_cast("POLYGON") %>%
+        bind_rows(inner_temp, .)
+    }
+  }
+  inner_temp = inner_temp %>%
+    ungroup() %>%
+    group_by(codice_ogg) %>%
+    summarise(geometry = st_combine(geometry), .groups = "drop") %>%
+    st_cast("MULTIPOLYGON")
+
+  cigli_stradali_polygons =
+    bind_rows(cigli_stradali_polygons,
+              inner_temp)
+}
+cli_progress_done()
+
+saveRDS(cigli_stradali_polygons, "data/polygons/cigli_stradali_polygons.rds")
+
+# split by aree_statistiche #
+aree_statistiche_sf = aree_statistiche_sf %>% st_make_valid()
+
+zone_no_streets_polygons = NULL
+
+for(i in seq_len(nrow(aree_statistiche_polygons))){
+  zone_no_streets_polygons = bind_rows(
+    zone_no_streets_polygons,
+    aree_stradali_polygons %>% st_union() %>%
+      st_difference(aree_statistiche_sf %>% slice(i), .) %>%
+      select(geometry) %>% st_cast("POLYGON") %>%
+      mutate(id_isolato = row_number())
+)}
 
 # aree_statistiche_centroids = aree_statistiche_sf %>%
 #   group_by(id_area_statistica) %>%
@@ -162,11 +253,11 @@ civici_sezioni_sf = civici_sezioni %>%
 ### ####################### ###
 
 ### zone_no_streets_polygons ###
-zone_no_streets_polygons = aree_stradali_polygons %>%
-  summarise(geometry = st_union(geometry), .groups = "drop") %>%
-  st_difference(zone_sf, .) %>%
-  select(geometry) %>%  st_cast("POLYGON") %>%
-  mutate(id_isolato = row_number())
+# zone_no_streets_polygons = aree_stradali_polygons_split %>%
+#   summarise(geometry = st_union(geometry), .groups = "drop") %>%
+#   st_difference(aree_statistiche_sf, .) %>%
+#   select(geometry) %>%  st_cast("POLYGON") %>%
+#   mutate(id_isolato = row_number())
 
 ### civici_sezioni_zone ###
 isolato_indeces = st_intersects(civici_sezioni_sf, zone_no_streets_polygons, sparse = TRUE) %>% as.numeric()
@@ -209,6 +300,8 @@ for(i in 1:n_isolati){
 cli_progress_done()
 
 polygon_finale = polygon_finale[!st_is_empty(polygon_finale),]
+saveRDS(polygon_finale, "data/polygons/polygon_finale.rds")
+
 
 ### civici_sezioni_polygons  ###
 civici_polygons = civici_sezioni %>%
@@ -222,11 +315,13 @@ saveRDS(civici_polygons, "data/polygons/civici_polygons.rds")
 
 ### sezioni_polygons  ###
 sezioni_polygons = civici_sezioni %>%
-  select(id_civico, id_sezione) %>%
+  select(id_civico, id_sezione, id_area_statistica) %>%
   inner_join(polygon_finale, by = "id_civico") %>%
-  group_by(id_sezione) %>%
+  group_by(id_sezione, id_area_statistica) %>%
   summarise(geometry = st_union(geometry), .groups = "drop") %>%
   st_as_sf() %>% st_cast("MULTIPOLYGON")
+
+sezioni_polygons = sezioni_polygons %>% mutate(id_sezione_split = row_number(), .before = id_sezione)
 
 saveRDS(sezioni_polygons, "data/polygons/sezioni_polygons.rds")
 
@@ -300,3 +395,5 @@ saveRDS(centroids, "data/polygons/centroids.rds")
 #    st_cast("MULTIPOLYGON")
 #
 #  saveRDS(sezioni_polygons_filled, "data/polygons/sezioni_polygons_filled.rds")
+
+

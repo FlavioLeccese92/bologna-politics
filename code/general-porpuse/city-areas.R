@@ -171,8 +171,33 @@ for(i in seq_len(nrow(zone_coordinates))){
   x = remove_rownames(x)
   aree_stradali = bind_rows(aree_stradali, x)
 }
+aree_stradali = aree_stradali %>% distinct()
 
 saveRDS(aree_stradali, "data/general-porpuse/aree_stradali.rds")
+
+#### cigli_stradali ####
+cigli_stradali = NULL
+
+cli_progress_bar(
+  total = nrow(zone_coordinates),
+  format = "Downloading cigli_stradali {i}/{nrow(zone_coordinates)} {pb_bar} {pb_percent}"
+)
+
+for(i in seq_len(nrow(zone_coordinates))){
+
+  cli_progress_update(set = i)
+
+  res = GET(paste0("https://opendata.comune.bologna.it/api/records/1.0/search/?dataset=aree-stradali&q=&rows=10000&facet=descrizion&facet=origine&&geofilter.polygon=",
+                   zone_coordinates$coordinates[i]))
+  x = jsonlite::fromJSON(httr::content(res, 'text', encoding = "UTF-8"))
+  x = x[["records"]][["fields"]] %>% as_tibble()
+  x = remove_rownames(x)
+  cigli_stradali = bind_rows(cigli_stradali, x)
+}
+
+cigli_stradali = cigli_stradali %>% distinct()
+
+saveRDS(cigli_stradali, "data/general-porpuse/cigli_stradali.rds")
 
 #### sezioni (2021) ####
 
