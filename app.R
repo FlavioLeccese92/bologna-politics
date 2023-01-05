@@ -758,11 +758,13 @@ server = function(input, output, session) {
         map_data = map_data %>%
           mutate(val_col = risultato %>% ifelse(. <= ris_min, ris_min, .) %>% ifelse(. >= ris_max, ris_max, .)) %>%
           left_join(r$gerarchia_sezioni %>% distinct(id_sezione, id_seggio), by = "id_sezione") %>%
-          mutate(label = paste0(
+          group_by(id_level) %>%
+          mutate(intestazione = ifelse(input$gen_level != "Indirizzi", paste0("<strong>", id_level, "</strong><br>"), ""),
+                 label = paste0(intestazione,
             "Sezione: <strong>", id_sezione, "</strong><br>",
             "Seggio: <strong>", id_seggio, "</strong><br>",
             "Risultato: <strong>", 100*round(risultato, 4), "%</strong> (su ", level_text,")")) %>%
-          mutate(highlight_col = ifelse(level_selected, 0.7, 0.2))
+          mutate(highlight_col = ifelse(level_selected, 0.7, 0.2)) %>% ungroup()
 
         }else{
           ris_max = ceiling(100*max(abs(map_data$delta)))/100; ris_min = -ris_max
@@ -771,13 +773,15 @@ server = function(input, output, session) {
           map_data = map_data %>%
             mutate(val_col = delta %>% ifelse(. <= ris_min, ris_min, .) %>% ifelse(. >= ris_max, ris_max, .)) %>%
             left_join(r$gerarchia_sezioni %>% distinct(id_sezione, id_seggio), by = "id_sezione") %>%
-            mutate(label = paste0(
+            group_by(id_level) %>%
+            mutate(intestazione = ifelse(input$gen_level != "Indirizzi", paste0("<strong>", id_level, "</strong><br>"), ""),
+              label = paste0(intestazione,
               "Sezione: <strong>", id_sezione, "</strong><br>",
               "Seggio: <strong>", id_seggio, "</strong><br>",
               "Risultato: <strong>", 100*round(risultato, 4), "%</strong><br>",
               "Risultato precedente: <strong>", 100*round(risultato_prev, 4), "%</strong><br>",
-              "Delta: <strong>", label_percent(accuracy = 0.01, style_positive = "plus")(delta), "%</strong> (su ", level_text, ")")) %>%
-            mutate(highlight_col = ifelse(level_selected, 0.7, 0.2))
+              "Delta: <strong>", label_percent(accuracy = 0.01, style_positive = "plus")(delta), "</strong> (su ", level_text, ")")) %>%
+            mutate(highlight_col = ifelse(level_selected, 0.7, 0.2)) %>% ungroup()
         }
 
       if(all(map_data$level_selected)){
@@ -824,7 +828,7 @@ server = function(input, output, session) {
         addLayersControl(overlayGroups = overlayGroups, options = layersControlOptions(collapsed = FALSE)) %>%
         {if (length(sezione())==0) hideGroup(., "Seggio") else  showGroup(., "Seggio")} %>%
         {if (!is.null(gerarchia_polygons()))
-          addPolylines(., data = gerarchia_polygons(), group = "Livelli", color = "white", weight = 2, opacity = 1, dashArray = "6") else .} %>%
+          addPolylines(., data = gerarchia_polygons(), group = "Livelli", color = "white", weight = 2, opacity = 1) else .} %>%
         {if (!is.null(gerarchia_indirizzi()))
           {if (nrow(gerarchia_indirizzi())==1)
             addMarkers(., data = indirizzo, lat = ~latitude, lng = ~longitude,

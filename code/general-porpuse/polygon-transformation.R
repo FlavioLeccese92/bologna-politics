@@ -22,6 +22,58 @@ civici_sezioni = readRDS("data/general-porpuse/civici_sezioni.rds")
 
 aree_stradali = readRDS("data/general-porpuse/aree_stradali.rds")
 
+### quartieri_sf ###
+quartieri_sf =
+  quartieri %>%
+  unnest(coordinates) %>%
+  group_by(id_quartiere) %>%
+  mutate(longitude = coordinates %>% .[[1]] %>% .[1,,1] %>% list(),
+         latitude = coordinates %>% .[[1]] %>% .[1,,2] %>% list())  %>%
+  unnest(c(latitude, longitude)) %>%
+  select(id_quartiere, longitude, latitude) %>%
+  st_as_sf(., coords = c("longitude", "latitude")) %>%
+  summarise(geometry = st_combine(geometry), .groups = "drop") %>%
+  st_cast("POLYGON")
+
+saveRDS(quartieri_sf, "data/polygons/quartieri_polygons.rds")
+
+### aree_statistiche_sf ###
+aree_statistiche_sf = aree_statistiche %>%
+  group_by(id_area_statistica) %>%
+  unnest(coordinates) %>%
+  mutate(longitude = coordinates %>% .[[1]] %>% .[1,1,,1] %>% list(),
+         latitude = coordinates %>% .[[1]] %>% .[1,1,,2] %>% list()) %>%
+  unnest(c(latitude, longitude)) %>%
+  select(id_area_statistica, longitude, latitude) %>%
+  st_as_sf(., coords = c("longitude", "latitude")) %>%
+  summarise(geometry = st_combine(geometry), .groups = "drop") %>%
+  st_cast("POLYGON")
+
+saveRDS(aree_statistiche_sf, "data/polygons/aree_statistice_polygons.rds")
+
+### zone_sf ###
+
+### zone fixate ###
+# (su opendata riportati confini non coerenti con aree statistiche) #
+
+zone_sf = aree_statistiche_sf %>%
+  left_join(aree_statistiche, by = "id_area_statistica") %>%
+  group_by(id_zona) %>%
+  summarise(geometry = st_union(geometry), .groups = "drop") %>%
+  st_cast("POLYGON")
+
+# zone_sf = zone %>%
+#   group_by(id_zona) %>%
+#   unnest(coordinates) %>%
+#   mutate(longitude = coordinates %>% .[[1]] %>% .[1,1,,1] %>% list(),
+#          latitude = coordinates %>% .[[1]] %>% .[1,1,,2] %>% list()) %>%
+#   unnest(c(latitude, longitude)) %>%
+#   select(id_zona, longitude, latitude) %>%
+#   st_as_sf(., coords = c("longitude", "latitude")) %>%
+#   summarise(geometry = st_combine(geometry), .groups = "drop") %>%
+#   st_cast("POLYGON")
+
+saveRDS(zone_sf, "data/polygons/zone_polygons.rds")
 
 
 ### quartieri_sf ###
@@ -38,34 +90,6 @@ quartieri_sf =
   st_cast("POLYGON")
 
 saveRDS(quartieri_sf, "data/polygons/quartieri_polygons.rds")
-
-### zone_sf ###
-zone_sf = zone %>%
-  group_by(id_zona) %>%
-  unnest(coordinates) %>%
-  mutate(longitude = coordinates %>% .[[1]] %>% .[1,1,,1] %>% list(),
-         latitude = coordinates %>% .[[1]] %>% .[1,1,,2] %>% list()) %>%
-  unnest(c(latitude, longitude)) %>%
-  select(id_zona, longitude, latitude) %>%
-  st_as_sf(., coords = c("longitude", "latitude")) %>%
-  summarise(geometry = st_combine(geometry), .groups = "drop") %>%
-  st_cast("POLYGON")
-
-saveRDS(zone_sf, "data/polygons/zone_polygons.rds")
-
-### aree_statistiche_sf ###
-aree_statistiche_sf = aree_statistiche %>%
-  group_by(id_area_statistica) %>%
-  unnest(coordinates) %>%
-  mutate(longitude = coordinates %>% .[[1]] %>% .[1,1,,1] %>% list(),
-         latitude = coordinates %>% .[[1]] %>% .[1,1,,2] %>% list()) %>%
-  unnest(c(latitude, longitude)) %>%
-  select(id_area_statistica, longitude, latitude) %>%
-  st_as_sf(., coords = c("longitude", "latitude")) %>%
-  summarise(geometry = st_combine(geometry), .groups = "drop") %>%
-  st_cast("POLYGON")
-
-saveRDS(aree_statistiche_sf, "data/polygons/aree_statistice_polygons.rds")
 
 ### aree_stradali_polygons ###
 aree_stradali_polygons = NULL
